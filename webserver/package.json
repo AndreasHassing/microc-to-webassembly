@@ -1,0 +1,10 @@
+{
+  "name": "webassembly-compiler-webapi",
+  "main": "server.js",
+  "description": "Part of a bachelor project, exposes a web api outwards, that lets consumers send MicroC, which the server gets compiled and sends back as wast and wasm files.",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.16.1",
+    "express": "^4.14.1"
+  }
+}
