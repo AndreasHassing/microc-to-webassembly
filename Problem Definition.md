@@ -1,5 +1,5 @@
-# Bachelor project
-## Problem definition
+# Bachelor Project
+## Problem Definition
 WebAssembly (WASM) is a new up-and-coming binary code format for the user-facing web, designed to work alongside JavaScript as a more portable, size- and load-time-efficient, ahead-of-time-compiled alternative.
 
 The binary WASM format is not bound to be emitted by JavaScript (asm.js) only, potentially bringing your favorite language to the browser front-end. If a language can compile to a intermediate representation supported by WASM (LLVM IR, for instance), it can be compiled to the binary WASM format.
