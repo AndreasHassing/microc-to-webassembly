@@ -9,6 +9,7 @@
   * [Stories](#stories)
   * [References](#references)
 * [Decisions](#decisions)
+* [Informative Links](#informative-links)
 </details>
 
 # WebAssembly Through the Looking-Glass
@@ -86,3 +87,7 @@ WebAssembly modules are dynamically linked prior to runtime, to allow injection 
     console.log(`child process exited with code ${code}`)
   })
   ```
+
+# Informative Links
+* [Advanced JS performance with V8 (Google Chrome JS engine) and Web Assembly (Chrome Dev Summit 2016)](https://www.youtube.com/watch?v=PvZdTZ1Nl5o)
+* [How WebAssembly Will Change the Way You Write Javascript (Seth Samuel at EmpireNode)](https://www.youtube.com/watch?v=kq2HBddiyh0)
