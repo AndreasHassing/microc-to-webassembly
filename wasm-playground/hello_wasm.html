@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Hello, World! - WASM</title>
+  </head>
+  <body>
+    <script>
+    async function loadHelloWorld() {
+      let binary = await fetch('hello_wasm.wasm')
+      let bytes = await binary.arrayBuffer()
+      let module = await WebAssembly.compile(bytes)
+      let instance = await WebAssembly.instantiate(module, {imports: {log: console.log}})
+
+      return instance
+    }
+
+    async function runHelloWorld() {
+      const helloWorldInstance = await loadHelloWorld()
+      helloWorldInstance.exports.run()
+    }
+
+    runHelloWorld()
+    </script>
+  </body>
+</html>
