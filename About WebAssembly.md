@@ -26,7 +26,7 @@ Following is a list of key information about WebAssembly, obtained via [WebAssem
 ## What is in the MVP
 There are goals for the WebAssembly project that the CG *know* that they want and need, but have to wait until after the MVP.
 
-The MVP<sup>2</sup> is broken up into separate subjects:
+The MVP<sup>[2](#references)</sup> is broken up into separate subjects:
 
 * Module: the distributable, loadable and executable unit of code (`.wasm`).
 * Behavior of code in a module, as specified in terms of instructions for a structured stack machine.
@@ -50,10 +50,10 @@ WebAssembly modules are dynamically linked prior to runtime, to allow injection 
 
 
 # Decisions
-> Decisions made along the way towards the final project.
+> Decisions made along the way towards finalizing the bachelor project.
 
 ## Implementation of compiler
-* Use FsLexYacc, as it is pre-known, and used in the course from last semester.
+* Use the FsLexYacc compiler-compiler framework, as it is pre-known and was used in the "Programs as Data" course previous semester.
 * Compile MicroC to either **just** s-expressions, or all the way to binary. If you stick with s-expressions, use WABT to compile from s-expressions to wasm binary.
 
 ## Implementation of web-part
