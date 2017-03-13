@@ -23,7 +23,8 @@ module Contcomp
 
 open System.IO
 open Absyn
-open Machine
+//open Machine
+open WastTranspiler
 
 (* The intermediate representation between passes 1 and 2 above:  *)
 

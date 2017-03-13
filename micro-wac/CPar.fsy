@@ -38,25 +38,25 @@ let nl = CstI 10
 %%
 
 Main:
-    Topdecs EOF                         { Prog $1 }
+  | Topdecs EOF                         { Prog $1 }
 ;
 
 Topdecs:
-    /* empty */                         { [] }
+  | /* empty */                         { [] }
   | Topdec Topdecs                      { $1 :: $2 }
 ;
 
 Topdec:
-    Vardec SEMI                         { Vardec (fst $1, snd $1) }
+  | Vardec SEMI                         { Vardec (fst $1, snd $1) }
   | Fundec                              { $1 }
 ;
 
 Vardec:
-    Type Vardesc                        { ((fst $2) $1, snd $2) }
+  | Type Vardesc                        { ((fst $2) $1, snd $2) }
 ;
 
 Vardesc:
-    NAME                                { ((fun t -> t), $1)                      }
+  | NAME                                { ((fun t -> t), $1)                      }
   | TIMES Vardesc                       { compose1 TypP $2                        }
   | LPAR Vardesc RPAR                   { $2                                      }
   | Vardesc LBRACK RBRACK               { compose1 (fun t -> TypA(t, None)) $1    }
@@ -64,37 +64,37 @@ Vardesc:
 ;
 
 Fundec:
-    VOID NAME LPAR Paramdecs RPAR Block { Fundec(None,     $2, $4, $6) }
+  | VOID NAME LPAR Paramdecs RPAR Block { Fundec(None,     $2, $4, $6) }
   | Type NAME LPAR Paramdecs RPAR Block { Fundec(Some($1), $2, $4, $6) }
 ;
 
 Paramdecs:
-    /* empty */                         { [] }
+  | /* empty */                         { [] }
   | Paramdecs1                          { $1 }
 ;
 
 Paramdecs1:
-    Vardec                              { [$1]     }
+  | Vardec                              { [$1]     }
   | Vardec COMMA Paramdecs1             { $1 :: $3 }
 ;
 
 Block:
-    LBRACE StmtOrDecSeq RBRACE          { Block $2 }
+  | LBRACE StmtOrDecSeq RBRACE          { Block $2 }
 ;
 
 StmtOrDecSeq:
-    /* empty */                         { [] }
+  | /* empty */                         { [] }
   | Stmt StmtOrDecSeq                   { Stmt $1 :: $2 }
   | Vardec SEMI StmtOrDecSeq            { Dec (fst $1, snd $1) :: $3 }
 ;
 
 Stmt:
-    StmtM                               { $1 }
+  | StmtM                               { $1 }
   | StmtU                               { $1 }
 ;
 
 StmtM:  /* No unbalanced if-else */
-    Expr SEMI                           { Expr($1)             }
+  | Expr SEMI                           { Expr($1)             }
   | RETURN SEMI                         { Return None          }
   | RETURN Expr SEMI                    { Return(Some($2))     }
   | Block                               { $1                   }
@@ -103,18 +103,18 @@ StmtM:  /* No unbalanced if-else */
 ;
 
 StmtU:
-    IF LPAR Expr RPAR StmtM ELSE StmtU  { If($3, $5, $7)       }
+  | IF LPAR Expr RPAR StmtM ELSE StmtU  { If($3, $5, $7)       }
   | IF LPAR Expr RPAR Stmt              { If($3, $5, Block []) }
   | WHILE LPAR Expr RPAR StmtU          { While($3, $5)        }
 ;
 
 Expr:
-    Access                              { Access $1           }
+  | Access                              { Access $1           }
   | ExprNotAccess                       { $1                  }
 ;
 
 ExprNotAccess:
-    AtExprNotAccess                     { $1                  }
+  | AtExprNotAccess                     { $1                  }
   | Access ASSIGN Expr                  { Assign($1, $3)      }
   | NAME LPAR Exprs RPAR                { Call($1, $3)        }
   | NOT Expr                            { Prim1("!", $2)      }
@@ -133,18 +133,16 @@ ExprNotAccess:
   | Expr LE    Expr                     { Prim2("<=", $1, $3) }
   | Expr SEQAND Expr                    { Cond($1, $3, CstI 0)}
   | Expr SEQOR  Expr                    { Cond($1, CstI 1, $3)}
-//   | Expr SEQAND Expr                    { Andalso($1, $3)     }
-//   | Expr SEQOR  Expr                    { Orelse($1, $3)      }
 ;
 
 AtExprNotAccess:
-    Const                               { CstI $1             }
+  | Const                               { CstI $1             }
   | LPAR ExprNotAccess RPAR             { $2                  }
   | AMP Access                          { Addr $2             }
 ;
 
 Access:
-    NAME                                { AccVar $1           }
+  | NAME                                { AccVar $1           }
   | LPAR Access RPAR                    { $2                  }
   | TIMES Access                        { AccDeref (Access $2)}
   | TIMES AtExprNotAccess               { AccDeref $2         }
@@ -152,23 +150,23 @@ Access:
 ;
 
 Exprs:
-    /* empty */                         { []       }
+  | /* empty */                         { []       }
   | Exprs1                              { $1       }
 ;
 
 Exprs1:
-    Expr                                { [$1]     }
+  | Expr                                { [$1]     }
   | Expr COMMA Exprs1                   { $1 :: $3 }
 ;
 
 Const:
-    CSTINT                              { $1       }
+  | CSTINT                              { $1       }
   | CSTBOOL                             { $1       }
   | MINUS CSTINT                        { - $2     }
   | NULL                                { -1       }
 ;
 
 Type:
-    INT                                 { TypI     }
+  | INT                                 { TypI     }
   | CHAR                                { TypC     }
 ;
