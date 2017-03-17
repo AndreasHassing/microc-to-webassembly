@@ -4,5 +4,5 @@
   (func $log (import "imports" "log") (param i32))
   (func (export "run")
     i32.const 42
-    call $log)  
+    call $log)
 )
