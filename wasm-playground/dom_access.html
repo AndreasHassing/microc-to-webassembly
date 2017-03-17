@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Can WASM get DOM access?</title>
+	</head>
+	<body>
+		<script>
+		const idLookupTable = [
+			"form-input",
+			"test-div"
+		]
+
+		function changeValueOfElement(idKey, value) {
+			document.getElementById(idLookupTable[idKey]).value = value
+		}
+
+		async function loadDomTest() {
+			let binary = await fetch('dom_access.wasm')
+			let bytes = await binary.arrayBuffer()
+			let module = await WebAssembly.compile(bytes)
+			let instance = await WebAssembly.instantiate(module, {
+				imports: {
+					changeValue: changeValueOfElement
+				}
+			})
+
+			return instance
+		}
+
+		async function runDomTest() {
+			await loadDomTest()
+		}
+
+		runDomTest()
+		</script>
+
+		<form>
+			<input id="form-input" type="number" placeholder="form input test">
+		</form>
+
+		If the number in the input field above is 42, then yes. But it's not easy, and writing WAST in hand that returns strings is very hard (unfeasible).
+	</body>
+</html>
