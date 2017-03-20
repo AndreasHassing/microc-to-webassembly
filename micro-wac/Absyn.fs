@@ -42,8 +42,8 @@ and stmtordec =
   | Stmt of stmt                     (* A statement                 *)
 
 and topdec =
-  | Fundec of typ option * string * (typ * string) list * stmt
   | Vardec of typ * string
 
 and program =
   | Prog of topdec list
+  | Fundec of bool * Typ option * string * (Typ * string) list * Stmt

@@ -25,6 +25,7 @@ let keyword s =
 // | "print"   -> PRINT // not available in WebAssembly
 // | "println" -> PRINTLN // not available in WebAssembly
   | "return"  -> RETURN
+  | "export"  -> EXPORT
   | "true"    -> CSTBOOL 1
   | "void"    -> VOID
   | "while"   -> WHILE
