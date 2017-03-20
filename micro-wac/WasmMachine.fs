@@ -1,19 +1,19 @@
-(* File MicroC/WastTranspiler.fs
+(* File MicroC/WasmMachine.fs
 
-   WastTranspiler emits WebAssembly code in the form of
-   the recognized WebAssembly S-Expression syntax.
+   WasmMachine emits WebAssembly code in the form of
+   binary stack machine code.
 
    Based on:
    Instructions and code emission for a stack-based
    abstract machine * sestoft@itu.dk 2009-09-23
  *)
 
-module WastTranspiler
+module WasmMachine
 
-type label = string
+type Label = string
 
-type instr =
-  | Label of label                     (* symbolic label; pseudo-instruc. *)
+type Instr =
+  | Label of Label                     (* symbolic label; pseudo-instruc. *)
   | CSTI of int                        (* constant                        *)
   | ADD                                (* addition                        *)
   | SUB                                (* subtraction                     *)
@@ -30,11 +30,11 @@ type instr =
   | GETBP                              (* get bp                          *)
   | GETSP                              (* get sp                          *)
   | INCSP of int                       (* increase stack top by m         *)
-  | GOTO of label                      (* go to label                     *)
-  | IFZERO of label                    (* go to label if s[sp] == 0       *)
-  | IFNZRO of label                    (* go to label if s[sp] != 0       *)
-  | CALL of int * label                (* move m args up 1, push pc, jump *)
-  | TCALL of int * int * label         (* move m args down n, jump        *)
+  | GOTO of Label                      (* go to label                     *)
+  | IFZERO of Label                    (* go to label if s[sp] == 0       *)
+  | IFNZRO of Label                    (* go to label if s[sp] != 0       *)
+  | CALL of int * Label                (* move m args up 1, push pc, jump *)
+  | TCALL of int * int * Label         (* move m args down n, jump        *)
   | RET of int                         (* pop m and return to s[sp]       *)
   | PRINTI                             (* print s[sp] as integer          *)
   | PRINTC                             (* print s[sp] as character        *)
@@ -49,7 +49,7 @@ let (resetLabels, newLabel) =
 
 (* Simple environment operations *)
 
-type 'data env = (string * 'data) list
+type 'data Env = (string * 'data) list
 
 let rec lookup env x =
   match env with
@@ -64,32 +64,32 @@ let rec lookup env x =
 
 (* These numeric instruction codes must agree with Machine.java: *)
 
-let CODECSTI   = 0
-let CODEADD    = 1
-let CODESUB    = 2
-let CODEMUL    = 3
-let CODEDIV    = 4
-let CODEMOD    = 5
-let CODEEQ     = 6
-let CODELT     = 7
-let CODENOT    = 8
-let CODEDUP    = 9
-let CODESWAP   = 10
-let CODELDI    = 11
-let CODESTI    = 12
-let CODEGETBP  = 13
-let CODEGETSP  = 14
-let CODEINCSP  = 15
-let CODEGOTO   = 16
-let CODEIFZERO = 17
-let CODEIFNZRO = 18
-let CODECALL   = 19
-let CODETCALL  = 20
-let CODERET    = 21
-let CODEPRINTI = 22
-let CODEPRINTC = 23
-let CODELDARGS = 24
-let CODESTOP   = 25
+let CODECSTI   = 0x41 // (i32.const)
+let CODEADD    = 0x6a // (i32.add)
+let CODESUB    = 0x6b // (i32.sub)
+let CODEMUL    = 0x6c // (i32.mul)
+let CODEDIV    = 0x6d // (i32.div_s) signed division
+let CODEMOD    = 0x6f // (i32.rem_s) signed remainder (modulus)
+let CODEEQ     = 0x46 // (i32.eq)
+let CODELT     = 0x48 // (i32.lt_s) signed less than
+let CODENOT    = 0x45 // (i32.eqz)
+let CODEDUP    = 9 // not implemented in WASM
+let CODESWAP   = 10 // not implemented in WASM
+let CODELDI    = 11 // not implemented in WASM
+let CODESTI    = 12 // not implemented in WASM
+let CODEGETBP  = 13 // not used in WASM
+let CODEGETSP  = 14 // not used in WASM
+let CODEINCSP  = 15 // not used in WASM
+let CODEGOTO   = 0x0c // (br)
+let CODEIFZERO = 0x0d // (br_if)
+let CODEIFNZRO = 0x0d // (br_if) - negated logic
+let CODECALL   = 0x10 // (call)
+let CODETCALL  = 20 // not implemented in WASM
+let CODERET    = 0x0f // (return)
+let CODEPRINTI = 22 // not implemented in WASM
+let CODEPRINTC = 23 // not implemented in WASM
+let CODELDARGS = 24 // not implemented in WASM
+let CODESTOP   = 25 // not implemented in WASM
 
 (* Bytecode emission, first pass: build environment that maps
    each label to an integer address in the bytecode.
@@ -162,7 +162,11 @@ let rec emitints getlab instr ints =
    Pass 2: output instructions using label environment
  *)
 
-let code2ints (code : instr list) : int list =
+let code2ints (code : Instr list) : int list =
+  let wasmBinaryMagicNumber = 0x0061736d
+  let wasmBinaryVersionNumber = 0x01000000
+  let wasmHeader = wasmBinaryMagicNumber :: [wasmBinaryVersionNumber]
+
   let (_, labenv) = List.fold makelabenv (0, []) code
   let getlab lab = lookup labenv lab
-  List.foldBack (emitints getlab) code []
+  List.foldBack (emitints getlab) code wasmHeader
