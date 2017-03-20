@@ -7,43 +7,43 @@
 
 module Absyn
 
-type typ =
+type Typ =
   | TypI                             (* Type int                    *)
   | TypC                             (* Type char                   *)
-  | TypA of typ * int option         (* Array type                  *)
-  | TypP of typ                      (* Pointer type                *)
+  | TypA of Typ * int option         (* Array type                  *)
+  | TypP of Typ                      (* Pointer type                *)
 
-and expr =
-  | Access of access                 (* x    or  *p    or  a[e]     *)
-  | Assign of access * expr          (* x=e  or  *p=e  or  a[e]=e   *)
-  | Addr of access                   (* &x   or  &*p   or  &a[e]    *)
-  | Cond of expr * expr * expr       (* x ? a : b                   *)
+and Expr =
+  | Access of Access                 (* x    or  *p    or  a[e]     *)
+  | Assign of Access * Expr          (* x=e  or  *p=e  or  a[e]=e   *)
+  | Addr of Access                   (* &x   or  &*p   or  &a[e]    *)
+  | Cond of Expr * Expr * Expr       (* x ? a : b                   *)
   | CstI of int                      (* Constant                    *)
-  | Prim1 of string * expr           (* Unary primitive operator    *)
-  | Prim2 of string * expr * expr    (* Binary primitive operator   *)
-  | Andalso of expr * expr           (* Sequential and              *)
-  | Orelse of expr * expr            (* Sequential or               *)
-  | Call of string * expr list       (* Function call f(...)        *)
+  | Prim1 of string * Expr           (* Unary primitive operator    *)
+  | Prim2 of string * Expr * Expr    (* Binary primitive operator   *)
+  | Andalso of Expr * Expr           (* Sequential and              *)
+  | Orelse of Expr * Expr            (* Sequential or               *)
+  | Call of string * Expr list       (* Function call f(...)        *)
 
-and access =
+and Access =
   | AccVar of string                 (* Variable access        x    *)
-  | AccDeref of expr                 (* Pointer dereferencing  *p   *)
-  | AccIndex of access * expr        (* Array indexing         a[e] *)
+  | AccDeref of Expr                 (* Pointer dereferencing  *p   *)
+  | AccIndex of Access * Expr        (* Array indexing         a[e] *)
 
-and stmt =
-  | If of expr * stmt * stmt         (* Conditional                 *)
-  | While of expr * stmt             (* While loop                  *)
-  | Expr of expr                     (* Expression statement   e;   *)
-  | Return of expr option            (* Return from method          *)
-  | Block of stmtordec list          (* Block: grouping and scope   *)
+and Stmt =
+  | If of Expr * Stmt * Stmt         (* Conditional                 *)
+  | While of Expr * Stmt             (* While loop                  *)
+  | Expr of Expr                     (* Expression statement   e;   *)
+  | Return of Expr option            (* Return from method          *)
+  | Block of Stmtordec list          (* Block: grouping and scope   *)
 
-and stmtordec =
-  | Dec of typ * string              (* Local variable declaration  *)
-  | Stmt of stmt                     (* A statement                 *)
+and Stmtordec =
+  | Dec of Typ * string              (* Local variable declaration  *)
+  | Stmt of Stmt                     (* A statement                 *)
 
-and topdec =
-  | Vardec of typ * string
-
-and program =
-  | Prog of topdec list
+and Topdec =
   | Fundec of bool * Typ option * string * (Typ * string) list * Stmt
+  | Vardec of Typ * string
+
+and Program =
+  | Prog of Topdec list
