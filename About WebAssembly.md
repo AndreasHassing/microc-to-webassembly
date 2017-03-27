@@ -63,8 +63,11 @@ WebAssembly modules are dynamically linked prior to runtime, to allow injection 
 ## Implementation of compiler
 * Use the FsLexYacc compiler-compiler framework, as it is pre-known and was used in the "Programs as Data" course previous semester.
 * Compile MicroC to either **just** s-expressions, or all the way to binary. If you stick with s-expressions, use WABT to compile from s-expressions to wasm binary.
+  * I'm having a hard time figuring out of it's easier/better to compile to s-expression form (wast) or directly to binary (wasm). The main issue is that the current compiler framework is built to generate bytecode (binary), not to transpile to another language.
 * Find a way to implement WebAssembly exports and imports in MicroC.
+  * Implemented exports in [df40f41](https://github.com/AndreasHassing/microc-to-webassembly/commit/df40f41c934d45bee4e01e5a68604dc20e7b8037).
 * Find a way to compile the `print` function embedded in MicroC to WebAssembly, think: import a console.log function per default?
+  * This is actually not possible. A hack could be to force users to inject a console.log-like function into modules compiled with Micro-WAC, but that seems unnecessary. It makes more sense to explain how this is a "limitation" in the current WebAssembly code format.
 
 ## Implementation of web-part
 > Frontend: lets users type MicroC, and sends compilation to the server back-end.<br>Webserver: invokes the compiler, and returns the output to the front-end.
