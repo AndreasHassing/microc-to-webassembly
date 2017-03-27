@@ -69,7 +69,7 @@ Vardesc:
 ;
 
 ExportedFundec:
- | EXPORT Fundec                        { exportFun $2 }
+  | EXPORT Fundec                        { exportFun $2 }
 ;
 
 Fundec:
