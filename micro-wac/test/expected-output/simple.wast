@@ -1,6 +1,5 @@
 (module
   (func $printi (import "imports" "printi") (param i32))
-  (func $println (import "imports" "println") (param i32))
   (func $start
     (local i32)
     i32.const 5
