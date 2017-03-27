@@ -1,0 +1,70 @@
+0000000: 0061 736d                                 ; WASM_BINARY_MAGIC
+0000004: 0100 0000                                 ; WASM_BINARY_VERSION
+; section "Type" (1)
+0000008: 01                                        ; section code
+0000009: 00                                        ; section size (guess)
+000000a: 04                                        ; num types
+; type 0
+000000b: 60                                        ; func
+000000c: 00                                        ; num params
+000000d: 00                                        ; num results
+; type 1
+000000e: 60                                        ; func
+000000f: 01                                        ; num params
+0000010: 7f                                        ; i32
+0000011: 00                                        ; num results
+; type 2
+0000012: 60                                        ; func
+0000013: 01                                        ; num params
+0000014: 7f                                        ; i32
+0000015: 01                                        ; num results
+0000016: 7f                                        ; i32
+; type 3
+0000017: 60                                        ; func
+0000018: 02                                        ; num params
+0000019: 7f                                        ; i32
+000001a: 7f                                        ; i32
+000001b: 00                                        ; num results
+0000009: 12                                        ; FIXUP section size
+; section "Function" (3)
+000001c: 03                                        ; section code
+000001d: 00                                        ; section size (guess)
+000001e: 05                                        ; num functions
+000001f: 00                                        ; function 0 signature index
+0000020: 01                                        ; function 1 signature index
+0000021: 02                                        ; function 2 signature index
+0000022: 03                                        ; function 3 signature index
+0000023: 01                                        ; function 4 signature index
+000001d: 06                                        ; FIXUP section size
+; section "Code" (10)
+0000024: 0a                                        ; section code
+0000025: 00                                        ; section size (guess)
+0000026: 05                                        ; num functions
+; function body 0
+0000027: 00                                        ; func body size (guess)
+0000028: 00                                        ; local decl count
+0000029: 0b                                        ; end
+0000027: 02                                        ; FIXUP func body size
+; function body 1
+000002a: 00                                        ; func body size (guess)
+000002b: 00                                        ; local decl count
+000002c: 0b                                        ; end
+000002a: 02                                        ; FIXUP func body size
+; function body 2
+000002d: 00                                        ; func body size (guess)
+000002e: 00                                        ; local decl count
+000002f: 41                                        ; i32.const
+0000030: 05                                        ; i32 literal
+0000031: 0b                                        ; end
+000002d: 04                                        ; FIXUP func body size
+; function body 3
+0000032: 00                                        ; func body size (guess)
+0000033: 00                                        ; local decl count
+0000034: 0b                                        ; end
+0000032: 02                                        ; FIXUP func body size
+; function body 4
+0000035: 00                                        ; func body size (guess)
+0000036: 00                                        ; local decl count
+0000037: 0b                                        ; end
+0000035: 02                                        ; FIXUP func body size
+0000025: 12                                        ; FIXUP section size
