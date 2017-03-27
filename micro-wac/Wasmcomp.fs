@@ -44,7 +44,7 @@ open WasmMachine
 
 type 'data Env = (string * 'data) list
 
-let rec lookup env x =
+let rec lookup (env : 'a Env) x =
   match env with
   | []         -> failwith (x + " not found")
   | (y, v)::yr -> if x=y then v else lookup yr x
@@ -87,7 +87,7 @@ let bindParam (env, fdepth) (typ, x)  : VarEnv =
   ((x, (Locvar fdepth, typ)) :: env , fdepth+1)
 
 let bindParams paras ((env, fdepth) : VarEnv) : VarEnv =
-  List.fold bindParam (env, fdepth) paras;
+  List.fold bindParam (env, fdepth) paras
 
 (* ------------------------------------------------------------------- *)
 

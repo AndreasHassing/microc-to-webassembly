@@ -10,7 +10,7 @@ open Absyn
 
 (* Plain parsing from a string, with poor error reporting *)
 
-let fromString (str : string) : program =
+let fromString (str : string) : Program =
   let lexbuf = Lexing.LexBuffer<char>.FromString(str)
   try
     CPar.Main CLex.Token lexbuf

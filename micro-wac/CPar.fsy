@@ -37,7 +37,7 @@ let exportFun = function
 %nonassoc LBRACK          /* highest precedence  */
 
 %start Main
-%type <Absyn.program> Main
+%type <Absyn.Program> Main
 
 %%
 
