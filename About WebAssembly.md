@@ -72,28 +72,9 @@ WebAssembly modules are dynamically linked prior to runtime, to allow injection 
 ## Implementation of web-part
 > Frontend: lets users type MicroC, and sends compilation to the server back-end.<br>Webserver: invokes the compiler, and returns the output to the front-end.
 
-* Use Node.js for the server, that way all the www-facing content will be written in a single language.
-* Use Vue.js or jQuery as a front-end framework, as I know these two, and they improve the readability and extensibility of javascript applications.
+* Use Node.js for the server, that way all the www-facing content will be written in a single language (JavaScript).
+* Use Vue.js or jQuery as a front-end framework, as I know these two, and they improve the readability and extensibility of JavaScript applications.
 * Use bootstrap for styling, I know it already, and there is no need to reinvent the wheel here.
-
-### Examples of code
-* JavaScript, that runs in Node.js, and prints the output of `ls -lh /usr`. This sort of process spawning with output can work for the compiler:
-  ```javascript
-  const spawn = require('child_process').spawn
-  const ls = spawn('ls', ['-lh', '/usr'])
-
-  ls.stdout.on('data', (data) => {
-    console.log(`stdout: ${data}`)
-  })
-
-  ls.stderr.on('data', (data) => {
-    console.log(`stderr: ${data}`)
-  })
-
-  ls.on('close', (code) => {
-    console.log(`child process exited with code ${code}`)
-  })
-  ```
 
 # Informative Links
 * [Advanced JS performance with V8 (Google Chrome JS engine) and Web Assembly (Chrome Dev Summit 2016)](https://www.youtube.com/watch?v=PvZdTZ1Nl5o)
