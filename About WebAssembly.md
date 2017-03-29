@@ -26,6 +26,7 @@ Following is a list of key information about WebAssembly, obtained via [WebAssem
 * A standard on how to import WebAssembly via HTML is [ongoing work](https://github.com/whatwg/loader/blob/master/roadmap.md), as it will [require an extension to the HTML spec](https://github.com/WebAssembly/design/blob/master/Modules.md#integration-with-es6-modules), to say when a script is parsed as a module instead of normal global code in `<script>` tags.
 * [*Local variables have value types and are initialized to the appropriate zero value for their type (0 for integers, +0. for floating-point).*](https://github.com/WebAssembly/design/blob/master/Semantics.md#local-variables)
 * "Even though WebAssembly is specified in terms of a stack machine, that's not how it works on the physical machine. When the browser translates WebAssembly to the machine code for the machine the browser is running on, it will use registers. Since the WebAssembly code doesn't specify registers, it gives the browser more flexibility to use the best register allocation for that machine." - https://hacks.mozilla.org/2017/02/creating-and-working-with-webassembly-modules/
+* A WebAssembly page has a constant size of 65,536 bytes, i.e., 64KiB. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_objects/WebAssembly/Memory#Parameters
 * Module section requirements (in order) - also gracefully ripped from https://hacks.mozilla.org/2017/02/creating-and-working-with-webassembly-modules
 
   Required:
