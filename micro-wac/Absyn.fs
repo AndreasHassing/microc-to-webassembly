@@ -42,6 +42,7 @@ and Stmtordec =
   | Stmt of Stmt                     (* A statement                 *)
 
 and Topdec =
+  | Funsig of bool * Typ option * string * (Typ * string) list
   | Fundec of bool * Typ option * string * (Typ * string) list * Stmt
   | Vardec of Typ * string
 

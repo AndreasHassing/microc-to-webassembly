@@ -10,16 +10,20 @@ open Absyn
 let compose1 f (g, s) = ((fun x -> g(f(x))), s)
 let nl = CstI 10
 
-let exportFun = function
+let exportFundec = function
   | Fundec(_, typ, name, pardecs, block) -> Fundec(true, typ, name, pardecs, block)
-  | _ -> failwith "can only export functions"
+  | _ -> failwith "can only export function declarations"
+
+let importFunsig = function
+  | Funsig(_, typ, name, pardecs) -> Funsig(true, typ, name, pardecs)
+  | _ -> failwith "can only import function signatures"
 %}
 
 %token <int> CSTINT CSTBOOL
 %token <string> CSTSTRING NAME
 
 %token CHAR ELSE IF INT NULL RETURN VOID WHILE
-%token EXPORT
+%token EXPORT IMPORT
 %token PLUS MINUS TIMES DIV MOD
 %token EQ NE GT LT GE LE
 %token NOT SEQOR SEQAND
@@ -52,6 +56,7 @@ Topdecs:
 
 Topdec:
   | Vardec SEMI                         { Vardec (fst $1, snd $1) }
+  | ImportedFunsig                      { $1 }
   | ExportedFundec                      { $1 }
   | Fundec                              { $1 }
 ;
@@ -68,14 +73,24 @@ Vardesc:
   | Vardesc LBRACK CSTINT RBRACK        { compose1 (fun t -> TypA(t, Some $3)) $1 }
 ;
 
+ImportedFunsig:
+  | IMPORT Funsig                       { importFunsig $2 }
+;
+
 ExportedFundec:
-  | EXPORT Fundec                        { exportFun $2 }
+  | EXPORT Fundec                       { exportFundec $2 }
+;
+
+Funsig:
+  | VOID NAME LPAR Paramdecs RPAR SEMI  { Funsig(false, None,    $2, $4) }
+  | Type NAME LPAR Paramdecs RPAR SEMI  { Funsig(false, Some $1, $2, $4) }
 ;
 
 Fundec:
-  | VOID NAME LPAR Paramdecs RPAR Block { Fundec(false, None,     $2, $4, $6) }
-  | Type NAME LPAR Paramdecs RPAR Block { Fundec(false, Some($1), $2, $4, $6) }
+  | VOID NAME LPAR Paramdecs RPAR Block { Fundec(false, None,    $2, $4, $6) }
+  | Type NAME LPAR Paramdecs RPAR Block { Fundec(false, Some $1, $2, $4, $6) }
 ;
+
 
 Paramdecs:
   | /* empty */                         { [] }

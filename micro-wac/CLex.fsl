@@ -24,6 +24,7 @@ let keyword s =
   | "null"    -> NULL
   | "return"  -> RETURN
   | "export"  -> EXPORT
+  | "import"  -> IMPORT
   | "true"    -> CSTBOOL 1
   | "void"    -> VOID
   | "while"   -> WHILE
