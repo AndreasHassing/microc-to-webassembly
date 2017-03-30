@@ -2,6 +2,7 @@
 
    WasmMachine emits WebAssembly code in the form of
    binary stack machine code.
+   abhn@itu.dk 2017-03-30
 
    Based on:
    Instructions and code emission for a stack-based
@@ -10,36 +11,126 @@
 
 module WasmMachine
 
-type Label = string
+type UInt8 = UInt8 of uint8
+type UInt16 = UInt16 of uint16
+type UInt32 = UInt32 of uint32
 
-type Instr =
-  | Label of Label                     (* symbolic label; pseudo-instruc. *)
-  | CSTI of int                        (* constant                        *)
-  | ADD                                (* addition                        *)
-  | SUB                                (* subtraction                     *)
-  | MUL                                (* multiplication                  *)
-  | DIV                                (* division                        *)
-  | MOD                                (* modulus                         *)
-  | EQ                                 (* equality: s[sp-1] == s[sp]      *)
-  | LT                                 (* less than: s[sp-1] < s[sp]      *)
-  | NOT                                (* logical negation:  s[sp] != 0   *)
-  | DUP                                (* duplicate stack top             *)
-  | SWAP                               (* swap s[sp-1] and s[sp]          *)
-  | LDI                                (* get s[s[sp]]                    *)
-  | STI                                (* set s[s[sp-1]]                  *)
-  | GETBP                              (* get bp                          *)
-  | GETSP                              (* get sp                          *)
-  | INCSP of int                       (* increase stack top by m         *)
-  | GOTO of Label                      (* go to label                     *)
-  | IFZERO of Label                    (* go to label if s[sp] == 0       *)
-  | IFNZRO of Label                    (* go to label if s[sp] != 0       *)
-  | CALL of int * Label                (* move m args up 1, push pc, jump *)
-  | TCALL of int * int * Label         (* move m args down n, jump        *)
-  | RET of int                         (* pop m and return to s[sp]       *)
-  | PRINTI                             (* print s[sp] as integer          *)
-  | PRINTC                             (* print s[sp] as character        *)
-  | LDARGS                             (* load command line args on stack *)
-  | STOP                               (* halt the abstract machine       *)
+type Bit =
+  | Bit of bool // hack to emulate a single bit
+  override b.ToString() = let (Bit bitValue) = b
+                          if bitValue then "1" else "0"
+
+type Varuint1 = Varuint1 of Bit
+type Varuint7 =
+  | Varuint7 of Bit * Bit * Bit * Bit * Bit * Bit * Bit // 7 bits
+  override bits.ToString() =
+    match bits with
+    | Varuint7(a, b, c, d, e, f, g) ->
+        a.ToString() + b.ToString() + c.ToString() +
+        d.ToString() + e.ToString() + f.ToString() +
+        g.ToString()
+
+type Varuint32 =  Varuint32 of uint32
+
+let nthBit n x =
+  (x >>> n) &&& 1
+
+let makeBit n = Bit (if n > 0 then true else false)
+let makeVaruint7 n =
+  if n > 0b1111111 || n < 0b0000000
+  then failwith "Can only make varuint7 of a number within the range 0-127"
+  // make bit for nth bit in x
+  let mbf n x = nthBit n x |> makeBit
+  Varuint7 (mbf 6 n, mbf 5 n, mbf 4 n, mbf 3 n, mbf 2 n, mbf 1 n, mbf 0 n)
+
+type Varint7 = Varint7 of int8 // 7 bits signed goes from -64..+63, simply check at compiletime
+type Varint32 = Varint32 of int32
+type Varint64 = Varint64 of int64
+
+type Index = I of int
+
+type RelativeDepth = RD of int
+
+type ValueType =
+  | I32
+  | AnyFunc
+  | Func
+
+type BlockType =
+  | ValueType of ValueType             (* single result *)
+  | ZeroResults                        (* 0 results     *)
+
+// The function type
+type FuncType = FT of Varint7 * Varuint32 * ValueType list option * Varuint1 * ValueType option
+
+let getBlockTypeCode = function
+  | ValueType t -> match t with
+                   | I32     -> 0x7f
+                   | AnyFunc -> 0x70
+                   | Func    -> 0x60
+  | ZeroResults -> 0x40
+
+type Operator =
+  // Control flow operators
+  | UNREACHABLE                        (* trap immediately (whatever that means)                  *)
+  | NOP                                (* no operation                                            *)
+  | BLOCK of BlockType                 (* begin a sequence of expressions, yielding 0 or 1 values *)
+  | LOOP of BlockType                  (* begin a block which can also form control flow loops    *)
+  | IF of BlockType                    (* begin if expression                                     *)
+  | ELSE                               (* begin else expression of if                             *)
+  | END                                (* end a block, loop, or if                                *)
+  | BR of RelativeDepth                (* break that targets an outer nested block                *)
+  | BR_IF of RelativeDepth             (* conditional break that targets an outer nested block    *)
+  | BR_TABLE                           (* NOT IMPLEMENTED DUE TO TIME CONSTRAINTS                 *)
+  | RETURN                             (* return zero or one value from this function             *)
+  // Call operators
+  | CALL of Index                      (* call function by its index                              *)
+  | CALL_INDIRECT                      (* NOT IMPLEMENTED DUE TO TIME CONSTRAINTS                 *)
+  // Paremetric operators
+  | DROP                               (* ignore value                                            *)
+  | SELECT                             (* select one of two values based on condition             *)
+  // Variable access
+  | GET_LOCAL of Index                 (* read the current value of a local variable              *)
+  | SET_LOCAL of Index                 (* set the current value of a local variable               *)
+  | TEE_LOCAL of Index                 (* set the current value of a local variable and return it *)
+  | GET_GLOBAL of Index                (* get the current value of a global variable              *)
+  | SET_GLOBAL of Index                (* set the current value of a global variable              *)
+  // Constants (MicroC only supports 32-bit signed integer operators)
+  | I32_CONST of int                   (* 32-bit signed integer constant                          *)
+  // Comparison operators
+  | I32_EQ                             (* sign-agnostic compare equal                             *)
+  | I32_EQZ                            (* compare equal to zero                                   *)
+  | I32_NE                             (* sign-agnostic compare unequal                           *)
+  | I32_LT_S                           (* signed less than                                        *)
+  | I32_LT_U                           (* unsigned less than                                      *)
+  | I32_GT_S                           (* signed greater than                                     *)
+  | I32_GT_U                           (* unsigned greater than                                   *)
+  | I32_LE_S                           (* signed less than or equal                               *)
+  | I32_LE_U                           (* unsigned less than or equal                             *)
+  | I32_GE_S                           (* signed greater than or equal                            *)
+  | I32_GE_U                           (* unsigned greater than or equal                          *)
+  // Numeric operators
+  | I32_ADD                            (* sign-agnostic addition: x+y                             *)
+  | I32_SUB                            (* sign-agnostic subtraction: x-y                          *)
+  | I32_MUL                            (* sign-agnostic multiplication (lower 32-bits)            *)
+  | I32_DIV_S                          (* signed division (result is truncated toward zero)       *)
+  | I32_DIV_U                          (* unsigned division (result is floored)                   *)
+  | I32_REM_S                          (* signed remainder (result has the sign of the dividend)  *)
+  | I32_REM_U                          (* unsigned remainder (effectively modulo)                 *)
+  | I32_AND                            (* sign-agnostic bitwise and                               *)
+  | I32_OR                             (* sign-agnostic bitwise inclusive or                      *)
+  | I32_XOR                            (* sign-agnostic bitwise exclusive or                      *)
+  | I32_SHL                            (* sign-agnostic shift left                                *)
+  | I32_SHR_U                          (* zero-replicating (logical) shift right                  *)
+  | I32_SHR_S                          (* sign-replicating (arithmetic) shift right               *)
+  | I32_ROTL                           (* sign-agnostic rotate left                               *)
+  | I32_ROTR                           (* sign-agnostic rotate right                              *)
+  | I32_CLZ                            (* sign-agnostic count leading zero bits                   *)
+  | I32_CTZ                            (* sign-agnostic count trailing zero bits                  *)
+  | I32_POPCNT                         (* sign-agnostic count number of one bits                  *)
+  // Memory-related operators -- NOT IMPLEMENTED DUE TO TIME CONSTRAINTS
+  // Conversions (no need to implement, not supported by MicroC)
+  // Reinterpretations (no need to implement, not supported by MicroC)
 
 (* Generate new distinct labels *)
 
@@ -62,111 +153,91 @@ let rec lookup env x =
      resolve labels
  *)
 
-(* These numeric instruction codes must agree with Machine.java: *)
-
-let CODECSTI   = 0x41 // (i32.const)
-let CODEADD    = 0x6a // (i32.add)
-let CODESUB    = 0x6b // (i32.sub)
-let CODEMUL    = 0x6c // (i32.mul)
-let CODEDIV    = 0x6d // (i32.div_s) signed division
-let CODEMOD    = 0x6f // (i32.rem_s) signed remainder (modulus)
-let CODEEQ     = 0x46 // (i32.eq)
-let CODELT     = 0x48 // (i32.lt_s) signed less than
-let CODENOT    = 0x45 // (i32.eqz)
-let CODEDUP    = 9 // not implemented in WASM
-let CODESWAP   = 10 // not implemented in WASM
-let CODELDI    = 11 // not implemented in WASM
-let CODESTI    = 12 // not implemented in WASM
-let CODEGETBP  = 13 // not used in WASM
-let CODEGETSP  = 14 // not used in WASM
-let CODEINCSP  = 15 // not used in WASM
-let CODEGOTO   = 0x0c // (br)
-let CODEIFZERO = 0x0d // (br_if)
-let CODEIFNZRO = 0x0d // (br_if) - negated logic
-let CODECALL   = 0x10 // (call)
-let CODETCALL  = 20 // not implemented in WASM
-let CODERET    = 0x0f // (return)
-let CODEPRINTI = 22 // not implemented in WASM
-let CODEPRINTC = 23 // not implemented in WASM
-let CODELDARGS = 24 // not implemented in WASM
-let CODESTOP   = 25 // not implemented in WASM
+let getOpCode = function
+  // Control flow operators
+  | UNREACHABLE   -> 0x00
+  | NOP           -> 0x01
+  | BLOCK _       -> 0x02
+  | LOOP _        -> 0x03
+  | IF _          -> 0x04
+  | ELSE          -> 0x05
+  | END           -> 0x06
+  | BR _          -> 0x0c
+  | BR_IF _       -> 0x0d
+  | BR_TABLE      -> 0x0e
+  | RETURN        -> 0x0f
+  // Call operators
+  | CALL _        -> 0x10
+  | CALL_INDIRECT -> 0x11
+  // Paremetric operators
+  | DROP          -> 0x1a
+  | SELECT        -> 0x1b
+  // Variable access
+  | GET_LOCAL _   -> 0x20
+  | SET_LOCAL _   -> 0x21
+  | TEE_LOCAL _   -> 0x22
+  | GET_GLOBAL _  -> 0x23
+  | SET_GLOBAL _  -> 0x24
+  // MicroC only supports 32-bit signed integer data, so only implement that
+  // Constants
+  | I32_CONST _   -> 0x41
+  // Comparison operators
+  | I32_EQZ       -> 0x45
+  | I32_EQ        -> 0x46
+  | I32_NE        -> 0x47
+  | I32_LT_S      -> 0x48
+  | I32_LT_U      -> 0x49
+  | I32_GT_S      -> 0x4a
+  | I32_GT_U      -> 0x4b
+  | I32_LE_S      -> 0x4c
+  | I32_LE_U      -> 0x4d
+  | I32_GE_S      -> 0x4e
+  | I32_GE_U      -> 0x4f
+  // Numeric operators
+  | I32_CLZ       -> 0x67
+  | I32_CTZ       -> 0x68
+  | I32_POPCNT    -> 0x69
+  | I32_ADD       -> 0x6a
+  | I32_SUB       -> 0x6b
+  | I32_MUL       -> 0x6c
+  | I32_DIV_S     -> 0x6d
+  | I32_DIV_U     -> 0x6e
+  | I32_REM_S     -> 0x6f
+  | I32_REM_U     -> 0x70
+  | I32_AND       -> 0x71
+  | I32_OR        -> 0x72
+  | I32_XOR       -> 0x73
+  | I32_SHL       -> 0x74
+  | I32_SHR_S     -> 0x75
+  | I32_SHR_U     -> 0x76
+  | I32_ROTL      -> 0x77
+  | I32_ROTR      -> 0x78
 
 (* Bytecode emission, first pass: build environment that maps
    each label to an integer address in the bytecode.
  *)
 
-let makelabenv (addr, labenv) instr =
-  match instr with
-  | Label lab      -> (addr, (lab, addr) :: labenv)
-  | CSTI i         -> (addr+2, labenv)
-  | ADD            -> (addr+1, labenv)
-  | SUB            -> (addr+1, labenv)
-  | MUL            -> (addr+1, labenv)
-  | DIV            -> (addr+1, labenv)
-  | MOD            -> (addr+1, labenv)
-  | EQ             -> (addr+1, labenv)
-  | LT             -> (addr+1, labenv)
-  | NOT            -> (addr+1, labenv)
-  | DUP            -> (addr+1, labenv)
-  | SWAP           -> (addr+1, labenv)
-  | LDI            -> (addr+1, labenv)
-  | STI            -> (addr+1, labenv)
-  | GETBP          -> (addr+1, labenv)
-  | GETSP          -> (addr+1, labenv)
-  | INCSP m        -> (addr+2, labenv)
-  | GOTO lab       -> (addr+2, labenv)
-  | IFZERO lab     -> (addr+2, labenv)
-  | IFNZRO lab     -> (addr+2, labenv)
-  | CALL(m,lab)    -> (addr+3, labenv)
-  | TCALL(m,n,lab) -> (addr+4, labenv)
-  | RET m          -> (addr+2, labenv)
-  | PRINTI         -> (addr+1, labenv)
-  | PRINTC         -> (addr+1, labenv)
-  | LDARGS         -> (addr+1, labenv)
-  | STOP           -> (addr+1, labenv)
 
 (* Bytecode emission, second pass: output bytecode as integers *)
 
-let rec emitints getlab instr ints =
+let emitints instr ints =
+  let opCode = getOpCode instr
   match instr with
-  | Label lab      -> ints
-  | CSTI i         -> CODECSTI   :: i :: ints
-  | ADD            -> CODEADD    :: ints
-  | SUB            -> CODESUB    :: ints
-  | MUL            -> CODEMUL    :: ints
-  | DIV            -> CODEDIV    :: ints
-  | MOD            -> CODEMOD    :: ints
-  | EQ             -> CODEEQ     :: ints
-  | LT             -> CODELT     :: ints
-  | NOT            -> CODENOT    :: ints
-  | DUP            -> CODEDUP    :: ints
-  | SWAP           -> CODESWAP   :: ints
-  | LDI            -> CODELDI    :: ints
-  | STI            -> CODESTI    :: ints
-  | GETBP          -> CODEGETBP  :: ints
-  | GETSP          -> CODEGETSP  :: ints
-  | INCSP m        -> CODEINCSP  :: m :: ints
-  | GOTO lab       -> CODEGOTO   :: getlab lab :: ints
-  | IFZERO lab     -> CODEIFZERO :: getlab lab :: ints
-  | IFNZRO lab     -> CODEIFNZRO :: getlab lab :: ints
-  | CALL(m,lab)    -> CODECALL   :: m :: getlab lab :: ints
-  | TCALL(m,n,lab) -> CODETCALL  :: m :: n :: getlab lab :: ints
-  | RET m          -> CODERET    :: m :: ints
-  | PRINTI         -> CODEPRINTI :: ints
-  | PRINTC         -> CODEPRINTC :: ints
-  | LDARGS         -> CODELDARGS :: ints
-  | STOP           -> CODESTOP   :: ints
+  | BLOCK b | LOOP b | IF b    -> opCode :: getBlockTypeCode b :: ints
+  | BR (RD rd) | BR_IF (RD rd) -> opCode :: rd :: ints
+  | CALL (I i)
+  | GET_LOCAL (I i)
+  | SET_LOCAL (I i)
+  | TEE_LOCAL (I i)
+  | GET_GLOBAL (I i)
+  | SET_GLOBAL (I i)           -> opCode :: i :: ints
+  | I32_CONST n                -> opCode :: n :: ints
+  // IMMEDIATE-FREE OPERATORS
+  | _                          -> opCode :: ints
 
-(* Convert instruction list to int list in two passes:
-   Pass 1: build label environment
-   Pass 2: output instructions using label environment
- *)
-
-let code2ints (code : Instr list) : int list =
+let code2ints (code : Operator list) : int list =
   let wasmBinaryMagicNumber = 0x0061736d
   let wasmBinaryVersionNumber = 0x01000000
-  let wasmHeader = wasmBinaryMagicNumber :: [wasmBinaryVersionNumber]
+  let wasmHeader = [wasmBinaryMagicNumber; wasmBinaryVersionNumber]
 
-  let (_, labenv) = List.fold makelabenv (0, []) code
-  let getlab lab = lookup labenv lab
-  List.foldBack (emitints getlab) code wasmHeader
+  List.foldBack emitints code wasmHeader
