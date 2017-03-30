@@ -27,6 +27,7 @@ Following is a list of key information about WebAssembly, obtained via [WebAssem
 * [*Local variables have value types and are initialized to the appropriate zero value for their type (0 for integers, +0. for floating-point).*](https://github.com/WebAssembly/design/blob/master/Semantics.md#local-variables)
 * "Even though WebAssembly is specified in terms of a stack machine, that's not how it works on the physical machine. When the browser translates WebAssembly to the machine code for the machine the browser is running on, it will use registers. Since the WebAssembly code doesn't specify registers, it gives the browser more flexibility to use the best register allocation for that machine." - https://hacks.mozilla.org/2017/02/creating-and-working-with-webassembly-modules/
 * A WebAssembly page has a constant size of 65,536 bytes, i.e., 64KiB. https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_objects/WebAssembly/Memory#Parameters
+* WebAssembly modules can act both as libraries (think .dll's) and as executables (think .exe's). Libraries in: what the module exposes, and executables in: which function it starts when fully loaded.
 * Module section requirements (in order) - also gracefully ripped from https://hacks.mozilla.org/2017/02/creating-and-working-with-webassembly-modules
 
   Required:
