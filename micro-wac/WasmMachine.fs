@@ -227,25 +227,41 @@ let getOpCode = function
 
 
 (* Bytecode emission, second pass: output bytecode as integers *)
+open System
+open System.Linq
 
-let emitints instr ints =
-  let opCode = getOpCode instr
+/// Little-endian
+let intToBytes (n : int) =
+  List.ofSeq (BitConverter.GetBytes(n).Reverse())
+
+let emitbytes instr bytes =
+  let opCode = intToBytes <| getOpCode instr
   match instr with
-  | BLOCK b | LOOP b | IF b    -> opCode :: getBlockTypeCode b :: ints
-  | BR (RD rd) | BR_IF (RD rd) -> opCode :: rd :: ints
+  | BLOCK b | LOOP b | IF b    -> opCode :: intToBytes (getBlockTypeCode b) :: bytes
+  | BR (RD rd) | BR_IF (RD rd) -> opCode :: intToBytes rd :: bytes
   | CALL (I i)
   | GET_LOCAL (I i)
   | SET_LOCAL (I i)
   | TEE_LOCAL (I i)
   | GET_GLOBAL (I i)
-  | SET_GLOBAL (I i)           -> opCode :: i :: ints
-  | I32_CONST n                -> opCode :: n :: ints
+  | SET_GLOBAL (I i)           -> opCode :: intToBytes i :: bytes
+  | I32_CONST n                -> opCode :: intToBytes n :: bytes
   // IMMEDIATE-FREE OPERATORS
-  | _                          -> opCode :: ints
+  | _                          -> opCode :: bytes
 
-let code2ints (code : Operator list) : int list =
+let code2bytes code =
   let wasmBinaryMagicNumber = 0x0061736d
   let wasmBinaryVersionNumber = 0x01000000
-  let wasmHeader = [wasmBinaryMagicNumber; wasmBinaryVersionNumber]
+  let wasmHeader = [intToBytes wasmBinaryMagicNumber; intToBytes wasmBinaryVersionNumber]
 
-  List.foldBack emitints code wasmHeader
+  let opSeparatedBytes = List.foldBack emitbytes code wasmHeader
+  List.concat opSeparatedBytes
+
+open System.IO
+let writeWasm code filepath filename =
+  let bytes = code2bytes code
+  let writer stream =
+    new BinaryWriter(stream)
+  let out = writer (File.Open(Path.Combine(filepath, filename), FileMode.Create))
+  List.iter (fun (b : byte) -> out.Write(b)) bytes |> ignore
+  out.Close()
