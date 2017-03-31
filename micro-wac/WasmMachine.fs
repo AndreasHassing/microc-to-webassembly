@@ -21,8 +21,10 @@ type Bit =
                           if bitValue then "1" else "0"
 
 type Varuint1 = Varuint1 of Bit
+
+// 7 bits unsigned goes from 0..+127
 type Varuint7 =
-  | Varuint7 of Bit * Bit * Bit * Bit * Bit * Bit * Bit // 7 bits
+  | Varuint7 of Bit * Bit * Bit * Bit * Bit * Bit * Bit
   override bits.ToString() =
     match bits with
     | Varuint7(a, b, c, d, e, f, g) ->
@@ -43,9 +45,15 @@ let makeVaruint7 n =
   let mbf n x = nthBit n x |> makeBit
   Varuint7 (mbf 6 n, mbf 5 n, mbf 4 n, mbf 3 n, mbf 2 n, mbf 1 n, mbf 0 n)
 
-type Varint7 = Varint7 of int8 // 7 bits signed goes from -64..+63, simply check at compiletime
+// 7 bits signed goes from -64..+63 (twos complement)
+type Varint7 = Varint7 of int8
 type Varint32 = Varint32 of int32
 type Varint64 = Varint64 of int64
+
+let makeVarint7 n =
+  if n > 63 || n < -64
+  then failwith "Can only make varint7 of a number within the range (-63..+64)"
+  Varint7(int8(n))
 
 type Index = I of int
 
