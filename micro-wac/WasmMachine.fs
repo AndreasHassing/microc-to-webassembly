@@ -256,12 +256,3 @@ let code2bytes code =
 
   let opSeparatedBytes = List.foldBack emitbytes code wasmHeader
   List.concat opSeparatedBytes
-
-open System.IO
-let writeWasm code filepath filename =
-  let bytes = code2bytes code
-  let writer stream =
-    new BinaryWriter(stream)
-  let out = writer (File.Open(Path.Combine(filepath, filename), FileMode.Create))
-  List.iter (fun (b : byte) -> out.Write(b)) bytes |> ignore
-  out.Close()
