@@ -104,7 +104,7 @@ type Instruction =
   | GET_GLOBAL of Index                (* get the current value of a global variable              *)
   | SET_GLOBAL of Index                (* set the current value of a global variable              *)
   // Constants (MicroC only supports 32-bit signed integer operators)
-  | I32_CONST of int                   (* 32-bit signed integer constant                          *)
+  | I32_CONST of int32                 (* 32-bit signed integer constant                          *)
   // Comparison operators
   | I32_EQ                             (* sign-agnostic compare equal                             *)
   | I32_EQZ                            (* compare equal to zero                                   *)
