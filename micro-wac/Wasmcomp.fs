@@ -44,6 +44,11 @@ open WasmMachine
 
 type 'data Env = (string * 'data) list
 
+// Recipe for progress (compiler recipe for MicroC -> WebAssembly)
+// 1. Construct WASM headers
+// 2. Construct type section (count distinct function types)
+
+type FunctionTypes = FuncType list
 let rec lookup (env : 'a Env) x =
   match env with
   | []         -> failwith (x + " not found")
@@ -265,13 +270,16 @@ let cProgram (Prog topdecs) : Instr list =
    to file fname; also, return the program as a list of instructions.
  *)
 
-let intsToFile (inss : int list) (fname : string) =
-  File.WriteAllText(fname, String.concat " " (List.map string inss))
+let compileToFile program filepath filename =
+  let instrs = cProgram program
+  // TODO: generate section headers
+  let bytes = code2bytes instrs
 
-let compileToFile program fname =
-  let instrs   = cProgram program
-  let bytecode = code2ints instrs
-  intsToFile bytecode fname
-  instrs
+  let writer stream =
+    new BinaryWriter(stream)
+
+  let out = writer (File.Open(Path.Combine(filepath, filename), FileMode.Create))
+  List.iter (fun (b : byte) -> out.Write(b)) bytes
+  out.Close()
 
 (* Example programs are found in the files ex1.c, ex2.c, etc *)

@@ -78,7 +78,7 @@ let getBlockTypeCode = function
                    | Func    -> 0x60
   | ZeroResults -> 0x40
 
-type Operator =
+type Instruction =
   // Control flow operators
   | UNREACHABLE                        (* trap immediately (whatever that means)                  *)
   | NOP                                (* no operation                                            *)
