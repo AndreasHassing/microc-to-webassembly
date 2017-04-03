@@ -1,4 +1,0 @@
-# Ignore compiled parser and lexer files
-CPar.fs
-CPar.fsi
-CLex.fs
