@@ -1,11 +1,11 @@
-(* File MicroC/Absyn.fs
+﻿(* File MicroC/Absyn.fs
    Abstract syntax of micro-C, an imperative language.
    sestoft@itu.dk 2009-09-25
 
    Must precede Interp.fs, Comp.fs and Contcomp.fs in Solution Explorer
  *)
 
-module Absyn
+module MicroWac.Absyn
 
 type Typ =
   | TypI                             (* Type int                    *)

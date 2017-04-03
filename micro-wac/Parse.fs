@@ -1,6 +1,6 @@
-(* Lexing and parsing of micro-C programs using fslex and fsyacc *)
+﻿(* Lexing and parsing of micro-C programs using fslex and fsyacc *)
 
-module Parse
+module MicroWac.Parse
 
 open System
 open System.IO

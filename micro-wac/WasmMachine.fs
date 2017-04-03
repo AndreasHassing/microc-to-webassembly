@@ -1,4 +1,4 @@
-(* File MicroC/WasmMachine.fs
+﻿(* File MicroC/WasmMachine.fs
 
    WasmMachine emits WebAssembly code in the form of
    binary stack machine code.
@@ -9,7 +9,7 @@
    abstract machine * sestoft@itu.dk 2009-09-23
  *)
 
-module WasmMachine
+module MicroWac.WasmMachine
 
 type UInt8 = UInt8 of uint8
 type UInt16 = UInt16 of uint16
@@ -35,6 +35,7 @@ type Varuint7 =
 type Varuint32 =  Varuint32 of uint32
 
 let nthBit n x =
+  if n >= 32 || n < 0 then failwith "nthBit only works on integers"
   (x >>> n) &&& 1
 
 let makeBit n = Bit (if n > 0 then true else false)

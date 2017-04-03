@@ -1,4 +1,4 @@
-(* File Wasmcomp.fs
+﻿(* File Wasmcomp.fs
    A compiler from micro-C, a sublanguage of the C language, to
    WebAssembly. Direct (forwards) compilation without optimization
    of jumps to jumps, tail-calls etc.
@@ -32,13 +32,15 @@
    are stack allocated: variables, function parameters and arrays.
 *)
 
-module Wasmcomp
+module MicroWac.Wasmcomp
 
 open System.IO
 open Absyn
 open WasmMachine
 
 (* ------------------------------------------------------------------- *)
+
+
 
 (* Simple environment operations *)
 
@@ -49,6 +51,7 @@ type 'data Env = (string * 'data) list
 // 2. Construct type section (count distinct function types)
 
 type FunctionTypes = FuncType list
+
 let rec lookup (env : 'a Env) x =
   match env with
   | []         -> failwith (x + " not found")
@@ -97,8 +100,8 @@ let bindParams paras ((env, fdepth) : VarEnv) : VarEnv =
 (* ------------------------------------------------------------------- *)
 
 (* Build environments for global variables and functions *)
-
-let makeGlobalEnvs (topdecs : Topdec list) : VarEnv * FunEnv * Instr list =
+// XXX Working here!
+let makeGlobalEnvs (topdecs : Topdec list) : VarEnv * FunEnv * Instruction list =
   let rec addv decs varEnv funEnv =
     match decs with
     | []         -> (varEnv, funEnv, [])
@@ -120,7 +123,7 @@ let makeGlobalEnvs (topdecs : Topdec list) : VarEnv * FunEnv * Instr list =
    * funEnv  is the global function environment
 *)
 
-let rec cStmt stmt (varEnv : VarEnv) (funEnv : FunEnv) : Instr list =
+let rec cStmt stmt (varEnv : VarEnv) (funEnv : FunEnv) : Instruction list =
   match stmt with
   | If(e, stmt1, stmt2) ->
     let labelse = newLabel()
@@ -168,7 +171,7 @@ and cStmtOrDec stmtOrDec (varEnv : VarEnv) (funEnv : FunEnv) : VarEnv * Instr li
    stack top (and thus extend the current stack frame with one element).
 *)
 
-and cExpr (e : Expr) (varEnv : VarEnv) (funEnv : FunEnv) : Instr list =
+and cExpr (e : Expr) (varEnv : VarEnv) (funEnv : FunEnv) : Instruction list =
   match e with
   | Access acc     -> cAccess acc varEnv funEnv @ [LDI]
   | Assign(acc, e) -> cAccess acc varEnv funEnv @ cExpr e varEnv funEnv @ [STI]
@@ -228,12 +231,12 @@ and cAccess access varEnv funEnv : Instr list =
 
 (* Generate code to evaluate a list es of expressions: *)
 
-and cExprs es varEnv funEnv : Instr list =
+and cExprs es varEnv funEnv : Instruction list =
   List.collect (fun e -> cExpr e varEnv funEnv) es
 
 (* Generate code to evaluate arguments es and then call function f: *)
 
-and callfun f es varEnv funEnv : Instr list =
+and callfun f es varEnv funEnv : Instruction list =
   let (labf, tyOpt, paramdecs) = lookup funEnv f
   let argc = List.length es
   if argc = List.length paramdecs then
@@ -244,8 +247,9 @@ and callfun f es varEnv funEnv : Instr list =
 
 (* Compile a complete micro-C program: globals, call to main, functions *)
 
-let cProgram (Prog topdecs) : Instr list =
-  let _ = resetLabels ()
+let cProgram (Prog topdecs) : Instruction list =
+  resetLabels()
+  // XXX Working here!
   let ((globalVarEnv, _), funEnv, globalInit) = makeGlobalEnvs topdecs
   let compilefun (exported, tyOpt, f, xs, body) =
     let (labf, _, paras) = lookup funEnv f
