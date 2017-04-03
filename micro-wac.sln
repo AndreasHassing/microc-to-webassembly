@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26228.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "microwac", "micro-wac\microwac.fsproj", "{D0EA3D45-FF07-4D18-B48F-F7EE88AFD312}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "microwac.Test", "micro-wac.Test\microwac.Test.fsproj", "{A3F1EA7E-5E3E-460C-9513-D44338F04060}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D0EA3D45-FF07-4D18-B48F-F7EE88AFD312}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D0EA3D45-FF07-4D18-B48F-F7EE88AFD312}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D0EA3D45-FF07-4D18-B48F-F7EE88AFD312}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D0EA3D45-FF07-4D18-B48F-F7EE88AFD312}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3F1EA7E-5E3E-460C-9513-D44338F04060}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3F1EA7E-5E3E-460C-9513-D44338F04060}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3F1EA7E-5E3E-460C-9513-D44338F04060}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3F1EA7E-5E3E-460C-9513-D44338F04060}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
