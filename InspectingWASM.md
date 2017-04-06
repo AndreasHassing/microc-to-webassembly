@@ -69,7 +69,7 @@ Compiled to WASM (slightly more detailed than `wast2wasm -v`)
 01                           ; Number of functions: 0x1
 0F                           ; Function body size: 0xf (decimal: 15)
 01                           ; Local variable declaration count: 0x1
-01                           ; Local type count: 0x1 (?)
+01                           ; Local type count of immediate type identifier: 0x1
 7F                           ; Type identifier for i32
 41                           ; i32.const (the next opcode will be a literal)
 05                           ; i32 literal: 0x05
