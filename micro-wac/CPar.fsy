@@ -153,8 +153,8 @@ ExprNotAccess:
   | Expr LT    Expr                     { Prim2("<",  $1, $3) }
   | Expr GE    Expr                     { Prim2(">=", $1, $3) }
   | Expr LE    Expr                     { Prim2("<=", $1, $3) }
-  | Expr SEQAND Expr                    { Cond($1, $3, CstI 0)}
-  | Expr SEQOR  Expr                    { Cond($1, CstI 1, $3)}
+  | Expr SEQAND Expr                    { Andalso($1, $3)     }
+  | Expr SEQOR  Expr                    { Orelse($1, $3)      }
 ;
 
 AtExprNotAccess:

@@ -66,7 +66,7 @@
     <Compile Include="CLex.fs" />
     <Compile Include="Parse.fs" />
     <Compile Include="WasmMachine.fs" />
-    <None Include="Wasmcomp.fs" />
+    <Compile Include="Wasmcomp.fs" />
     <Compile Include="Program.fs" />
     <None Include="CLex.fsl" />
     <None Include="CPar.fsy" />

@@ -1058,7 +1058,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 156 "..\..\CPar.fsy"
-                                                               Cond(_1, _3, CstI 0)
+                                                               Andalso(_1, _3)     
                    )
 # 156 "..\..\CPar.fsy"
                  : 'ExprNotAccess));
@@ -1070,7 +1070,7 @@ let _fsyacc_reductions ()  =    [|
                 (
                    (
 # 157 "..\..\CPar.fsy"
-                                                               Cond(_1, CstI 1, _3)
+                                                               Orelse(_1, _3)      
                    )
 # 157 "..\..\CPar.fsy"
                  : 'ExprNotAccess));

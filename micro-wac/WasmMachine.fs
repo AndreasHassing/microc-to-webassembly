@@ -56,9 +56,9 @@ let makeVarint7 n =
   then failwith "Can only make varint7 of a number within the range (-63..+64)"
   Varint7(int8(n))
 
-type Index = I of int
+type Index = int
 
-type RelativeDepth = RD of int
+type RelativeDepth = byte
 
 type ValueType =
   | I32
@@ -66,20 +66,24 @@ type ValueType =
   | Func
 
 type BlockType =
-  | ValueType of ValueType             (* single result *)
-  | ZeroResults                        (* 0 results     *)
+  | BReturn of ValueType                (* single result *)
+  | BVoid                               (* 0 results     *)
 
 // The function type
 type FuncType = FT of Varint7 * Varuint32 * ValueType list option * Varuint1 * ValueType option
 
+let getValueTypeCode = function
+  | I32     -> 0x7fuy
+  | AnyFunc -> 0x70uy
+  | Func    -> 0x60uy
+
 let getBlockTypeCode = function
-  | ValueType t -> match t with
-                   | I32     -> 0x7f
-                   | AnyFunc -> 0x70
-                   | Func    -> 0x60
-  | ZeroResults -> 0x40
+  | BReturn t -> getValueTypeCode t
+  | BVoid     -> 0x40uy
 
 type Instruction =
+  // Language types
+  | TYPE of ValueType                  (* argument type                                           *)
   // Control flow operators
   | UNREACHABLE                        (* trap immediately (whatever that means)                  *)
   | NOP                                (* no operation                                            *)
@@ -90,11 +94,9 @@ type Instruction =
   | END                                (* end a block, loop, or if                                *)
   | BR of RelativeDepth                (* break that targets an outer nested block                *)
   | BR_IF of RelativeDepth             (* conditional break that targets an outer nested block    *)
-  | BR_TABLE                           (* NOT IMPLEMENTED DUE TO TIME CONSTRAINTS                 *)
   | RETURN                             (* return zero or one value from this function             *)
   // Call operators
   | CALL of Index                      (* call function by its index                              *)
-  | CALL_INDIRECT                      (* NOT IMPLEMENTED DUE TO TIME CONSTRAINTS                 *)
   // Paremetric operators
   | DROP                               (* ignore value                                            *)
   | SELECT                             (* select one of two values based on condition             *)
@@ -104,7 +106,7 @@ type Instruction =
   | TEE_LOCAL of Index                 (* set the current value of a local variable and return it *)
   | GET_GLOBAL of Index                (* get the current value of a global variable              *)
   | SET_GLOBAL of Index                (* set the current value of a global variable              *)
-  // Constants (MicroC only supports 32-bit signed integer operators)
+  // Constants (MicroC only supports 32-bit signed integer operands)
   | I32_CONST of int32                 (* 32-bit signed integer constant                          *)
   // Comparison operators
   | I32_EQ                             (* sign-agnostic compare equal                             *)
@@ -137,15 +139,11 @@ type Instruction =
   | I32_CLZ                            (* sign-agnostic count leading zero bits                   *)
   | I32_CTZ                            (* sign-agnostic count trailing zero bits                  *)
   | I32_POPCNT                         (* sign-agnostic count number of one bits                  *)
+  // NOTE: It is not possible to create function pointers in MicroC
+  //| CALL_INDIRECT                      (* call function indirectly via a table                    *)
   // Memory-related operators -- NOT IMPLEMENTED DUE TO TIME CONSTRAINTS
   // Conversions (no need to implement, not supported by MicroC)
   // Reinterpretations (no need to implement, not supported by MicroC)
-
-(* Generate new distinct labels *)
-
-let (resetLabels, newLabel) =
-  let lastlab = ref -1
-  ((fun () -> lastlab := 0), (fun () -> (lastlab := 1 + !lastlab; "L" + (!lastlab).ToString())))
 
 (* Simple environment operations *)
 
@@ -163,69 +161,68 @@ let rec lookup env x =
  *)
 
 let getOpCode = function
+  // Language types
+  | TYPE valTyp   -> getValueTypeCode valTyp
   // Control flow operators
-  | UNREACHABLE   -> 0x00
-  | NOP           -> 0x01
-  | BLOCK _       -> 0x02
-  | LOOP _        -> 0x03
-  | IF _          -> 0x04
-  | ELSE          -> 0x05
-  | END           -> 0x06
-  | BR _          -> 0x0c
-  | BR_IF _       -> 0x0d
-  | BR_TABLE      -> 0x0e
-  | RETURN        -> 0x0f
+  | UNREACHABLE   -> 0x00uy
+  | NOP           -> 0x01uy
+  | BLOCK _       -> 0x02uy
+  | LOOP _        -> 0x03uy
+  | IF _          -> 0x04uy
+  | ELSE          -> 0x05uy
+  | END           -> 0x06uy
+  | BR _          -> 0x0cuy
+  | BR_IF _       -> 0x0duy
+  | RETURN        -> 0x0fuy
   // Call operators
-  | CALL _        -> 0x10
-  | CALL_INDIRECT -> 0x11
+  | CALL _        -> 0x10uy
   // Paremetric operators
-  | DROP          -> 0x1a
-  | SELECT        -> 0x1b
+  | DROP          -> 0x1auy
+  | SELECT        -> 0x1buy
   // Variable access
-  | GET_LOCAL _   -> 0x20
-  | SET_LOCAL _   -> 0x21
-  | TEE_LOCAL _   -> 0x22
-  | GET_GLOBAL _  -> 0x23
-  | SET_GLOBAL _  -> 0x24
-  // MicroC only supports 32-bit signed integer data, so only implement that
+  | GET_LOCAL _   -> 0x20uy
+  | SET_LOCAL _   -> 0x21uy
+  | TEE_LOCAL _   -> 0x22uy
+  | GET_GLOBAL _  -> 0x23uy
+  | SET_GLOBAL _  -> 0x24uy
+  // MicroC only supports 32-bit signed integer data
   // Constants
-  | I32_CONST _   -> 0x41
+  | I32_CONST _   -> 0x41uy
   // Comparison operators
-  | I32_EQZ       -> 0x45
-  | I32_EQ        -> 0x46
-  | I32_NE        -> 0x47
-  | I32_LT_S      -> 0x48
-  | I32_LT_U      -> 0x49
-  | I32_GT_S      -> 0x4a
-  | I32_GT_U      -> 0x4b
-  | I32_LE_S      -> 0x4c
-  | I32_LE_U      -> 0x4d
-  | I32_GE_S      -> 0x4e
-  | I32_GE_U      -> 0x4f
+  | I32_EQZ       -> 0x45uy
+  | I32_EQ        -> 0x46uy
+  | I32_NE        -> 0x47uy
+  | I32_LT_S      -> 0x48uy
+  | I32_LT_U      -> 0x49uy
+  | I32_GT_S      -> 0x4auy
+  | I32_GT_U      -> 0x4buy
+  | I32_LE_S      -> 0x4cuy
+  | I32_LE_U      -> 0x4duy
+  | I32_GE_S      -> 0x4euy
+  | I32_GE_U      -> 0x4fuy
   // Numeric operators
-  | I32_CLZ       -> 0x67
-  | I32_CTZ       -> 0x68
-  | I32_POPCNT    -> 0x69
-  | I32_ADD       -> 0x6a
-  | I32_SUB       -> 0x6b
-  | I32_MUL       -> 0x6c
-  | I32_DIV_S     -> 0x6d
-  | I32_DIV_U     -> 0x6e
-  | I32_REM_S     -> 0x6f
-  | I32_REM_U     -> 0x70
-  | I32_AND       -> 0x71
-  | I32_OR        -> 0x72
-  | I32_XOR       -> 0x73
-  | I32_SHL       -> 0x74
-  | I32_SHR_S     -> 0x75
-  | I32_SHR_U     -> 0x76
-  | I32_ROTL      -> 0x77
-  | I32_ROTR      -> 0x78
+  | I32_CLZ       -> 0x67uy
+  | I32_CTZ       -> 0x68uy
+  | I32_POPCNT    -> 0x69uy
+  | I32_ADD       -> 0x6auy
+  | I32_SUB       -> 0x6buy
+  | I32_MUL       -> 0x6cuy
+  | I32_DIV_S     -> 0x6duy
+  | I32_DIV_U     -> 0x6euy
+  | I32_REM_S     -> 0x6fuy
+  | I32_REM_U     -> 0x70uy
+  | I32_AND       -> 0x71uy
+  | I32_OR        -> 0x72uy
+  | I32_XOR       -> 0x73uy
+  | I32_SHL       -> 0x74uy
+  | I32_SHR_S     -> 0x75uy
+  | I32_SHR_U     -> 0x76uy
+  | I32_ROTL      -> 0x77uy
+  | I32_ROTR      -> 0x78uy
 
 (* Bytecode emission, first pass: build environment that maps
    each label to an integer address in the bytecode.
  *)
-
 
 (* Bytecode emission, second pass: output bytecode as integers *)
 open System
@@ -235,25 +232,28 @@ open System.Linq
 let intToBytes (n : int) =
   List.ofSeq (BitConverter.GetBytes(n).Reverse())
 
+let uintToBytes (n : uint32) =
+  List.ofSeq (BitConverter.GetBytes(n).Reverse())
+
 let emitbytes instr bytes =
-  let opCode = intToBytes <| getOpCode instr
+  let opCode = getOpCode instr
   match instr with
-  | BLOCK b | LOOP b | IF b    -> opCode :: intToBytes (getBlockTypeCode b) :: bytes
-  | BR (RD rd) | BR_IF (RD rd) -> opCode :: intToBytes rd :: bytes
-  | CALL (I i)
-  | GET_LOCAL (I i)
-  | SET_LOCAL (I i)
-  | TEE_LOCAL (I i)
-  | GET_GLOBAL (I i)
-  | SET_GLOBAL (I i)           -> opCode :: intToBytes i :: bytes
-  | I32_CONST n                -> opCode :: intToBytes n :: bytes
+  | BLOCK b | LOOP b | IF b    -> opCode :: getBlockTypeCode b :: bytes
+  | BR rd | BR_IF rd           -> opCode :: rd :: bytes
+  | CALL i
+  | GET_LOCAL i
+  | SET_LOCAL i
+  | TEE_LOCAL i
+  | GET_GLOBAL i
+  | SET_GLOBAL i               -> opCode :: intToBytes i @ bytes
+  | I32_CONST n                -> opCode :: intToBytes n @ bytes
   // IMMEDIATE-FREE OPERATORS
   | _                          -> opCode :: bytes
 
-let code2bytes code =
-  let wasmBinaryMagicNumber = 0x0061736d
-  let wasmBinaryVersionNumber = 0x01000000
-  let wasmHeader = [intToBytes wasmBinaryMagicNumber; intToBytes wasmBinaryVersionNumber]
+//let code2bytes code =
+//  let wasmBinaryMagicNumber = 0x0061736du
+//  let wasmBinaryVersionNumber = 0x01000000u
+//  let wasmHeader = [uintToBytes wasmBinaryMagicNumber; uintToBytes wasmBinaryVersionNumber]
 
-  let opSeparatedBytes = List.foldBack emitbytes code wasmHeader
-  List.concat opSeparatedBytes
+//  let opSeparatedBytes = List.foldBack emitbytes code wasmHeader
+//  List.concat opSeparatedBytes
