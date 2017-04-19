@@ -214,9 +214,12 @@ let cProgram (Prog topdecs) =
 
   let funCodeFolder topdec code =
     match topdec with
-    // in WASM, functions are a special kind of block without the block OP code, so discard it
-    | Fundec(_, _, _, _, block) as f -> (List.tail (cBlock varEnv funEnv block)) :: code
+    | Fundec(_, _, _, args, block) as f ->
+      let argsToLocVars = List.fold (fun env (_, name) -> Map.add name (Map.count env) env)
+      let varEnv = { varEnv with Locals = argsToLocVars varEnv.Locals args }
+      // in WASM, functions are a special kind of block without the block OP code, so discard it
+      (List.tail (cBlock varEnv funEnv block)) :: code
     | _ -> code
   let funCode = List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq |> Seq.map snd |> List.ofSeq) []
 
-  (funEnv, imports, exports, funCode)
+  (funEnv, varEnv, imports, exports, funCode)
