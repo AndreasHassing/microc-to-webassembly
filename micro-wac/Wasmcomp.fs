@@ -85,7 +85,7 @@ let access varEnv = function
   | AccIndex (acc, exp) -> [NOP]// acc[exp]
 
 let rec cExpr varEnv funEnv = function
-  | Access acc              -> access { varEnv with Locals = Map.empty } acc
+  | Access acc              -> access varEnv acc
   | Assign (acc, exp)       -> [NOP]
   | Addr acc                -> [NOP]
   | Cond (bExp, expT, expF) -> cExpr varEnv funEnv expT
