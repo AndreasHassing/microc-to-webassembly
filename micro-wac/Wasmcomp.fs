@@ -157,13 +157,19 @@ and cBlock varEnv funEnv = function
       BLOCK (BVoid) ::
         List.foldBack (fun elem acc -> (cStmtOrDec varEnv funEnv elem) @ acc) stmtOrDecs []
       @ [END]
-  | stmt -> failwith (sprintf "attempted to cBlock compile a non-block statement: %A" stmt)
+  | anyStmt -> failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyStmt)
 and cStmt varEnv funEnv = function
-  | If (exp, stmT, stmF) -> cExpr varEnv funEnv exp @ IF (BVoid) :: cStmt varEnv funEnv stmT @ ELSE :: cStmt varEnv funEnv stmF @ [END]
+  | If (exp, stmT, stmF) ->
+    cExpr varEnv funEnv exp @ IF (BVoid) :: cStmt varEnv funEnv stmT @ ELSE :: cStmt varEnv funEnv stmF @ [END]
   | While (exp, stm)     ->
-      BLOCK (BVoid) :: LOOP (BVoid) :: BR_IF 1uy ::
-      I32_EQZ :: cExpr varEnv funEnv exp @ cStmt varEnv funEnv stm @ BR 0uy :: [END; END]
-  | Expr exp             -> cExpr varEnv funEnv exp
+      BLOCK (BVoid)
+      :: LOOP (BVoid)
+        :: cExpr varEnv funEnv exp @ I32_EQZ :: BR_IF 1uy
+        :: cStmt varEnv funEnv stm
+        @  BR 0uy
+      :: [END;
+      END]
+  | Expr exp
   | Return (Some exp)    -> cExpr varEnv funEnv exp
   | Return None          -> []
   | Block _ as b         -> cBlock varEnv funEnv b
