@@ -58,14 +58,14 @@ let rec varAccess varEnv x =
   match (exists x varEnv.Locals, exists x varEnv.Globals) with
   | true, _     -> [GET_LOCAL (Map.find x varEnv.Locals)]
   | false, true -> [GET_GLOBAL (Map.find x varEnv.Globals)]
-  | _           -> failwith (sprintf "can't find %s" x)
+  | _           -> failwith (sprintf "can't find variable: %s" x)
 
 let getFunSig f =
   let getArgTypes types (typ, _) = typ :: types
   match f with
   | Funsig(_, retTyp, _, args)
   | Fundec(_, retTyp, _, args, _) -> (retTyp, List.fold getArgTypes [] args)
-  | _ -> failwith (sprintf "Can't get function signature of %A" f)
+  | _ -> failwith (sprintf "can't get function signature of %A" f)
 
 let updTypes func funEnv =
   let funsig = getFunSig func
