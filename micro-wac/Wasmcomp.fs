@@ -79,13 +79,19 @@ let getFunId name funEnv =
 let getFunDec funId funEnv =
   Map.find funId funEnv.Decs
 
-let access varEnv = function
+let allocateVar isGloVar varEnv name =
+  let addToMap name map = Map.add name (Map.count map) map
+  match isGloVar with
+  | true  -> { varEnv with Globals = addToMap name varEnv.Globals }
+  | false -> { varEnv with Locals  = addToMap name varEnv.Locals  }
+
+let accessVar varEnv = function
   | AccVar x            -> varAccess varEnv x
   | AccDeref exp        -> [NOP]// *exp
   | AccIndex (acc, exp) -> [NOP]// acc[exp]
 
 let rec cExpr varEnv funEnv = function
-  | Access acc              -> access varEnv acc
+  | Access acc              -> accessVar varEnv acc
   | Assign (acc, exp)       -> [NOP]
   | Addr acc                -> [NOP]
   | Cond (bExp, expT, expF) -> cExpr varEnv funEnv expT
@@ -150,17 +156,23 @@ let rec cExpr varEnv funEnv = function
     then failwith (sprintf "function %s expects %d args, got %d" name cArgs.Length funArgCount)
     else cArgs @ [CALL funId]
 and cStmtOrDec varEnv funEnv = function
-  | Dec (typ, name)      -> [NOP]
-  | Stmt stm             -> cStmt varEnv funEnv stm
+  | Dec (typ, name)      -> allocateVar false varEnv name, []
+  | Stmt stm             -> varEnv, (cStmt varEnv funEnv stm)
 and cBlock varEnv funEnv = function
   | Block stmtOrDecs ->
-      BLOCK (BVoid) ::
-        List.foldBack (fun elem acc -> (cStmtOrDec varEnv funEnv elem) @ acc) stmtOrDecs []
-      @ [END]
+      let varEnv, stmts =
+        List.foldBack (fun elem (varEnv, stmts) ->
+                        let varEnv, stmt = (cStmtOrDec varEnv funEnv elem)
+                        varEnv, stmt @ stmts
+                      ) stmtOrDecs (varEnv, [])
+      BLOCK (BVoid) :: [END]
   | anyStmt -> failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyStmt)
 and cStmt varEnv funEnv = function
   | If (exp, stmT, stmF) ->
-    cExpr varEnv funEnv exp @ IF (BVoid) :: cStmt varEnv funEnv stmT @ ELSE :: cStmt varEnv funEnv stmF @ [END]
+    cExpr varEnv funEnv exp
+    @ IF (BVoid) :: cStmt varEnv funEnv stmT
+    @ ELSE :: cStmt varEnv funEnv stmF
+    @ [END]
   | While (exp, stm)     ->
       BLOCK (BVoid)
       :: LOOP (BVoid)
@@ -200,8 +212,7 @@ let cProgram (Prog topdecs) =
       varEnv, { funEnv with Ids = Map.add name funId funEnv.Ids
                             Decs = Map.add funId f funEnv.Decs }
     | Vardec (typ, name) ->
-      let varId = Map.count varEnv.Globals
-      { varEnv with Globals = Map.add name varId varEnv.Globals }, funEnv
+      allocateVar true varEnv name, funEnv
     | _ -> varEnv, funEnv
   let varEnv, funEnv = List.fold envFolder (emptyVarEnv, funEnv) topdecs
 
@@ -212,13 +223,25 @@ let cProgram (Prog topdecs) =
     | _ -> exports
   let exports = List.foldBack exportFolder topdecs Map.empty
 
+  let rec buildLocalVarEnv stmt varEnv =
+    let stmtOrDecFolder stmtOrDec varEnv =
+      match stmtOrDec with
+      | Dec (_, name) -> { varEnv with Locals =  }
+      | Stmt stm      -> buildLocalVarEnv stm varEnv
+    match stmt with
+    | Block b            ->
+    | If (_, stm1, stm2) ->
+    | While (_, stm)     ->
+    | _                  ->
+
   let funCodeFolder topdec code =
     match topdec with
     | Fundec(_, _, _, args, block) as f ->
-      let argsToLocVars = List.fold (fun env (_, name) -> Map.add name (Map.count env) env)
-      let varEnv = { varEnv with Locals = argsToLocVars varEnv.Locals args }
+      let argsToLocVars = List.fold (fun env (_, name) -> allocateVar false env name)
+      let varEnv = argsToLocVars varEnv args
+      let varEnv = buildLocalVarEnv block varEnv
       // in WASM, functions are a special kind of block without the block OP code, so discard it
-      (List.tail (cBlock varEnv funEnv block)) :: code
+      let code = (List.tail (cBlock varEnv funEnv block)) :: code
     | _ -> code
   let funCode = List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq |> Seq.map snd |> List.ofSeq) []
 
