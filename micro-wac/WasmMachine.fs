@@ -224,12 +224,28 @@ type Section =
   | TYPE
   | IMPORT
   | FUNCTION
+  | TABLE
+  | MEMORY
+  | GLOBAL
+  | EXPORT
   | START
+  | ELEMENT
   | CODE
+  | DATA
 
 let getSectionCode = function
-  | TYPE  -> 0x01uy
-  | other -> failwith (sprintf "unknown section type: %A" other)
+  | TYPE     -> 1uy
+  | IMPORT   -> 2uy
+  | FUNCTION -> 3uy
+  | TABLE    -> 4uy
+  | MEMORY   -> 5uy
+  | GLOBAL   -> 6uy
+  | EXPORT   -> 7uy
+  | START    -> 8uy
+  | ELEMENT  -> 9uy
+  | CODE     -> 10uy
+  | DATA     -> 11uy
+
 (* Bytecode emission, first pass: build environment that maps
    each label to an integer address in the bytecode.
  *)
