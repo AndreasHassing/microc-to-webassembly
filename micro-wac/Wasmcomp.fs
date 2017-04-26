@@ -50,15 +50,35 @@ type FunEnv = { Ids:   Map<string, int>;
                 Types: Map<(Typ option * Typ list), int>;
                 Decs:  Map<int, Topdec> }
 
-type VarEnv = { Locals:  Map<string, int>;
+/// VarEnv local keys contain their name and the depth of declaration,
+/// their values contains the ID of the variable and if it is declared in the current scope.
+type LocVar = { Id: int; InScope: bool; }
+type VarEnv = { Locals:  Map<(string * int), LocVar>;
                 Globals: Map<string, int>; }
 
-let rec varAccess varEnv x =
-  let exists x m = Map.containsKey x m
-  match (exists x varEnv.Locals, exists x varEnv.Globals) with
-  | true, _     -> [GET_LOCAL (Map.find x varEnv.Locals)]
-  | false, true -> [GET_GLOBAL (Map.find x varEnv.Globals)]
-  | _           -> failwith (sprintf "can't find variable: %s" x)
+let getGlobalVarId name varEnv =
+  if Map.containsKey name varEnv.Globals
+  then Some (Map.find name varEnv.Globals)
+  else None
+
+let rec getLocalVarId (name, depth) varEnv =
+  let exists x m = Map.containsKey x m && (Map.find x m).InScope
+  match depth with
+  | 0 ->
+    if exists (name, depth) varEnv.Locals
+    then Some (Map.find (name, depth) varEnv.Locals).Id
+    else None
+  | _ when depth > 0 ->
+    if exists (name, depth) varEnv.Locals
+    then Some (Map.find (name, depth) varEnv.Locals).Id
+    else getLocalVarId (name, depth-1) varEnv
+  | _ -> failwith (sprintf "negative depth lookup: %s at depth %d" name depth)
+
+let rec varAccess varEnv ((x, depth) as var) =
+  match (getLocalVarId var varEnv, getGlobalVarId x varEnv) with
+  | Some varId, _    -> [GET_LOCAL varId]
+  | None, Some varId -> [GET_GLOBAL varId]
+  | _                -> failwith (sprintf "can't find variable: %s" x)
 
 let getFunSig f =
   let getArgTypes types (typ, _) = typ :: types
@@ -79,34 +99,40 @@ let getFunId name funEnv =
 let getFunDec funId funEnv =
   Map.find funId funEnv.Decs
 
-let allocateVar isGloVar varEnv name =
-  let addToMap name map = Map.add name (Map.count map) map
-  match isGloVar with
-  | true  -> { varEnv with Globals = addToMap name varEnv.Globals }
-  | false -> { varEnv with Locals  = addToMap name varEnv.Locals  }
+/// Depth is not used for globals
+let allocateGloVar varEnv name =
+  { varEnv with Globals = Map.add name (Map.count varEnv.Globals) varEnv.Globals }
 
-let accessVar varEnv = function
-  | AccVar x            -> varAccess varEnv x
+let allocateLocVar varEnv name depth =
+  let key = name, depth
+  let id = if Map.containsKey key varEnv.Locals
+           then (Map.find key varEnv.Locals).Id
+           else Map.count varEnv.Locals
+  let locVar = { Id = id; InScope = true; }
+  { varEnv with Locals = Map.add key locVar varEnv.Locals }
+
+let accessVar varEnv depth = function
+  | AccVar x            -> varAccess varEnv (x, depth)
   | AccDeref exp        -> [NOP]// *exp
   | AccIndex (acc, exp) -> [NOP]// acc[exp]
 
-let rec cExpr varEnv funEnv = function
-  | Access acc              -> accessVar varEnv acc
+let rec cExpr varEnv funEnv depth = function
+  | Access acc              -> accessVar varEnv depth acc
   | Assign (acc, exp)       -> [NOP]
   | Addr acc                -> [NOP]
-  | Cond (bExp, expT, expF) -> cExpr varEnv funEnv expT
-                               @ cExpr varEnv funEnv expF
-                               @ cExpr varEnv funEnv bExp
+  | Cond (bExp, expT, expF) -> cExpr varEnv funEnv depth expT
+                               @ cExpr varEnv funEnv depth expF
+                               @ cExpr varEnv funEnv depth bExp
                                @ [SELECT]
   | CstI i                  -> [I32_CONST i]
   | Prim1 (op, exp)         ->
-      cExpr varEnv funEnv  exp
+      cExpr varEnv funEnv depth exp
     @ (match op with
        | "!" -> [I32_EQZ]
        | _   -> failwith (sprintf "unknown prim1 operator: %s" op))
   | Prim2 (op, exp1, exp2)  ->
-      cExpr varEnv funEnv exp1
-    @ cExpr varEnv funEnv exp2
+      cExpr varEnv funEnv depth exp1
+    @ cExpr varEnv funEnv depth exp2
     @ (match op with
        | "+"  -> [I32_ADD]
        | "-"  -> [I32_SUB]
@@ -121,8 +147,8 @@ let rec cExpr varEnv funEnv = function
        | "<=" -> [I32_LE_S]
        | _    -> failwith (sprintf "unknown prim2 operator: %s" op))
   | Andalso (exp1, exp2)    ->
-    let lhs = cExpr varEnv funEnv exp1
-    let rhs = cExpr varEnv funEnv exp2
+    let lhs = cExpr varEnv funEnv depth exp1
+    let rhs = cExpr varEnv funEnv depth exp2
     lhs
     @ IF (BReturn I32) ::
         rhs
@@ -135,8 +161,8 @@ let rec cExpr varEnv funEnv = function
         I32_CONST 0;
       END]
   | Orelse (exp1, exp2)     ->
-    let lhs = cExpr varEnv funEnv exp1
-    let rhs = cExpr varEnv funEnv exp2
+    let lhs = cExpr varEnv funEnv depth exp1
+    let rhs = cExpr varEnv funEnv depth exp2
     lhs
     @ IF (BReturn I32)
       :: I32_CONST 1 ::
@@ -149,42 +175,61 @@ let rec cExpr varEnv funEnv = function
           END;
       END]
   | Call (name, argExprs)   ->
-    let cArgs = List.concat (List.map (fun e -> cExpr varEnv funEnv e) argExprs)
+    let cArgs = List.concat (List.map (fun e -> cExpr varEnv funEnv depth e) argExprs)
     let funId = getFunId name funEnv
     let funArgCount = List.length (snd (getFunSig (getFunDec funId funEnv)))
     if cArgs.Length <> funArgCount
     then failwith (sprintf "function %s expects %d args, got %d" name cArgs.Length funArgCount)
     else cArgs @ [CALL funId]
-and cStmtOrDec varEnv funEnv = function
-  | Dec (typ, name)      -> allocateVar false varEnv name, []
-  | Stmt stm             -> varEnv, (cStmt varEnv funEnv stm)
-and cBlock varEnv funEnv = function
+and cStmtOrDec varEnv funEnv depth = function
+  | Dec (typ, name)      -> allocateLocVar varEnv name depth, []
+  | Stmt stm             -> cStmt varEnv funEnv depth stm
+and cBlock varEnv funEnv depth = function
   | Block stmtOrDecs ->
+      let discardScopes currentDepth locals =
+        locals |> Map.toSeq
+        |> Seq.map fst // get keys
+        |> Seq.choose (fun ((name, varDepth) as x) -> // get keys with depth >= currentDepth
+            if varDepth >= currentDepth
+            then Some(x)
+            else None
+          )
+        |> Seq.fold (fun locals key ->
+             // it could look like we find locals with scope set to false here,
+             // however it is just record notation for setting InScope to false
+             Map.add key { Map.find key locals with InScope = false } locals
+           ) locals
+
       let varEnv, stmts =
-        List.foldBack (fun elem (varEnv, stmts) ->
-                        let varEnv, stmt = (cStmtOrDec varEnv funEnv elem)
-                        varEnv, stmt @ stmts
-                      ) stmtOrDecs (varEnv, [])
-      BLOCK (BVoid) :: [END]
-  | anyStmt -> failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyStmt)
-and cStmt varEnv funEnv = function
+        List.fold (fun (varEnv, stmts) elem ->
+                    let varEnv, stmt = (cStmtOrDec varEnv funEnv depth elem)
+                    varEnv, stmt @ stmts
+                  ) (varEnv, []) stmtOrDecs
+      let varEnv = { varEnv with Locals = discardScopes depth varEnv.Locals }
+      varEnv, BLOCK (BVoid) :: (List.rev stmts) @ [END]
+  | anyOtherStmt ->
+    failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyOtherStmt)
+and cStmt varEnv funEnv depth = function
   | If (exp, stmT, stmF) ->
-    cExpr varEnv funEnv exp
-    @ IF (BVoid) :: cStmt varEnv funEnv stmT
-    @ ELSE :: cStmt varEnv funEnv stmF
-    @ [END]
+    let varEnvT, stmTCode = cStmt varEnv funEnv (depth+1) stmT
+    let varEnvF, stmFCode = cStmt varEnvT funEnv (depth+1) stmF
+    varEnvF, cExpr varEnv funEnv depth exp
+             @ IF (BVoid) :: stmTCode
+             @ ELSE :: stmFCode
+             @ [END]
   | While (exp, stm)     ->
-      BLOCK (BVoid)
-      :: LOOP (BVoid)
-        :: cExpr varEnv funEnv exp @ I32_EQZ :: BR_IF 1uy
-        :: cStmt varEnv funEnv stm
-        @  BR 0uy
-      :: [END;
-      END]
+    let loopVarEnv, loopCode = cStmt varEnv funEnv (depth+1) stm
+    loopVarEnv, BLOCK (BVoid)
+                :: LOOP (BVoid)
+                  :: cExpr varEnv funEnv depth exp @ I32_EQZ :: BR_IF 1uy
+                  :: loopCode
+                  @  BR 0uy
+                :: [END;
+                END]
   | Expr exp
-  | Return (Some exp)    -> cExpr varEnv funEnv exp
-  | Return None          -> []
-  | Block _ as b         -> cBlock varEnv funEnv b
+  | Return (Some exp)    -> varEnv, cExpr varEnv funEnv depth exp
+  | Return None          -> varEnv, []
+  | Block _ as b         -> cBlock varEnv funEnv (depth+1) b
 
 let cProgram (Prog topdecs) =
   let emptyFunEnv = { Ids = Map.empty; Types = Map.empty; Decs = Map.empty; }
@@ -212,7 +257,7 @@ let cProgram (Prog topdecs) =
       varEnv, { funEnv with Ids = Map.add name funId funEnv.Ids
                             Decs = Map.add funId f funEnv.Decs }
     | Vardec (typ, name) ->
-      allocateVar true varEnv name, funEnv
+      allocateGloVar varEnv name, funEnv
     | _ -> varEnv, funEnv
   let varEnv, funEnv = List.fold envFolder (emptyVarEnv, funEnv) topdecs
 
@@ -223,26 +268,38 @@ let cProgram (Prog topdecs) =
     | _ -> exports
   let exports = List.foldBack exportFolder topdecs Map.empty
 
-  let rec buildLocalVarEnv stmt varEnv =
-    let stmtOrDecFolder stmtOrDec varEnv =
-      match stmtOrDec with
-      | Dec (_, name) -> { varEnv with Locals =  }
-      | Stmt stm      -> buildLocalVarEnv stm varEnv
-    match stmt with
-    | Block b            ->
-    | If (_, stm1, stm2) ->
-    | While (_, stm)     ->
-    | _                  ->
-
-  let funCodeFolder topdec code =
+  let funCodeFolder topdec (varEnvs, code) =
     match topdec with
     | Fundec(_, _, _, args, block) as f ->
-      let argsToLocVars = List.fold (fun env (_, name) -> allocateVar false env name)
+      let argsToLocVars = List.fold (fun env (_, name) -> allocateLocVar env name 0)
       let varEnv = argsToLocVars varEnv args
-      let varEnv = buildLocalVarEnv block varEnv
+      let varEnv, funCode = cBlock varEnv funEnv 0 block
       // in WASM, functions are a special kind of block without the block OP code, so discard it
-      let code = (List.tail (cBlock varEnv funEnv block)) :: code
-    | _ -> code
-  let funCode = List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq |> Seq.map snd |> List.ofSeq) []
+      varEnv :: varEnvs, (List.tail funCode) :: code
+    | _ -> varEnvs, code
+  let varEnvs, funCode = List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq |> Seq.map snd |> List.ofSeq) ([], [])
 
-  (funEnv, varEnv, imports, exports, funCode)
+  funEnv, varEnvs, imports, exports, funCode
+
+let code2bytes code =
+  List.foldBack emitbytes code []
+
+let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
+  let funBinary = List.map code2bytes funCode
+
+  let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
+
+  let writer filename = new BinaryWriter(File.Open(filename, FileMode.Create))
+
+  use wasmFile = writer "comptest.wasm"
+
+  // WASM Header: \0asm, v1
+  List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat wasmHeader)
+  // Type (1) header
+  wasmFile.Write(1uy) // section code: 0x01
+
+  List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat funBinary)
+
+  (funBinary, wasmHeader)
+
+let compileToFile program = (cProgram >> compileWasmBinary) program
