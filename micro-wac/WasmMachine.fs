@@ -228,12 +228,21 @@ let getOpCode = function
 open System
 open System.Linq
 
-/// Little-endian
-let intToBytes (n : int) =
-  List.ofSeq (BitConverter.GetBytes(n).Reverse())
+let ui2b (n : uint32) discardPadding =
+  let rec _discardPadding = function
+    | [0uy]     -> [0uy]
+    | 0uy :: xs -> _discardPadding xs
+    | xs        -> xs
+  let bytes = List.ofSeq (BitConverter.GetBytes(n).Reverse())
+  if discardPadding
+  then _discardPadding bytes
+  else bytes
 
-let uintToBytes (n : uint32) =
-  List.ofSeq (BitConverter.GetBytes(n).Reverse())
+let i2b (n : int) =
+  ui2b (uint32 n) false
+
+let i2bNoPad (n : int) =
+  ui2b (uint32 n) true
 
 let emitbytes instr bytes =
   let opCode = getOpCode instr
@@ -245,8 +254,8 @@ let emitbytes instr bytes =
   | SET_LOCAL i
   | TEE_LOCAL i
   | GET_GLOBAL i
-  | SET_GLOBAL i               -> opCode :: intToBytes i @ bytes
-  | I32_CONST n                -> opCode :: intToBytes n @ bytes
+  | SET_GLOBAL i               -> opCode :: i2bNoPad i @ bytes
+  | I32_CONST n                -> opCode :: i2bNoPad n @ bytes
   // IMMEDIATE-FREE OPERATORS
   | _                          -> opCode :: bytes
 
