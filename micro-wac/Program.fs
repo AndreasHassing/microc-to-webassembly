@@ -1,9 +1,44 @@
-﻿[<EntryPoint>]
-let main argv =
-    printfn "Hello there, compiling your stuff"
-    printfn "%A" argv
-    printfn "Done compiling your stuff LOL"
+﻿module MicroWac.Main
 
-    // pause until user presses the enter key
-    System.Console.ReadLine() |> ignore
-    0 // return an integer exit code
+type CommandLineOptions = {
+  cfile: string;
+  verbose: bool;
+  error: bool;
+}
+
+let printHelpMsg () =
+  printfn @"To compile: wasmcomp.exe [-v] <microc-file>.c"
+
+/// Parses command line arguments into a CommandLineOptions record.
+/// Inspired by https://fsharpforfunandprofit.com/posts/pattern-matching-command-line/
+let parseCommandLine args =
+  let rec parseArgs optionsSoFar = function
+    | []          -> optionsSoFar
+    | "-v" :: xs  -> let newOpts = { optionsSoFar with verbose = true }
+                     parseArgs newOpts xs
+    | cfile :: [] -> { optionsSoFar with cfile = cfile }
+    | _           -> printHelpMsg (); { optionsSoFar with error = true }
+  parseArgs { cfile = ""; verbose = false; error = false; } args
+
+open System.IO
+let renameExtension filename (toExt: string) =
+  let filenameWithoutExtension = Path.GetFileNameWithoutExtension filename
+  if toExt.[0] = '.'
+  then filenameWithoutExtension + toExt
+  else filenameWithoutExtension + "." + toExt
+
+//[<EntryPoint>]
+//let main argv =
+//  let opts = parseCommandLine (List.ofArray argv)
+
+//  if opts.error || opts.cfile = "" then 1 else
+
+//  if opts.verbose then printfn "Compiling %s to WebAssembly Binary" opts.cfile
+
+//  let programAsAST = Parse.fromFile opts.cfile
+//  let wasmFilename = renameExtension opts.cfile "wasm"
+//  Wasmcomp.compileToFile programAsAST wasmFilename
+
+//  // pause until user presses a key
+//  System.Console.ReadLine() |> ignore
+//  0 // return an integer exit code
