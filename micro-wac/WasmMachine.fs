@@ -220,6 +220,16 @@ let getOpCode = function
   | I32_ROTL      -> 0x77uy
   | I32_ROTR      -> 0x78uy
 
+type Section =
+  | TYPE
+  | IMPORT
+  | FUNCTION
+  | START
+  | CODE
+
+let getSectionCode = function
+  | TYPE  -> 0x01uy
+  | other -> failwith (sprintf "unknown section type: %A" other)
 (* Bytecode emission, first pass: build environment that maps
    each label to an integer address in the bytecode.
  *)
