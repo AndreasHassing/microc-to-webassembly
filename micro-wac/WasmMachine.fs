@@ -170,7 +170,7 @@ let getOpCode = function
   | LOOP _        -> 0x03uy
   | IF _          -> 0x04uy
   | ELSE          -> 0x05uy
-  | END           -> 0x06uy
+  | END           -> 0x0buy
   | BR _          -> 0x0cuy
   | BR_IF _       -> 0x0duy
   | RETURN        -> 0x0fuy
