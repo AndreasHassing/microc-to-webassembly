@@ -308,7 +308,6 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
        | None   -> [0uy]                                // ... or nothing returned
   let typeSectionData = funEnv.Types |> Map.toSeq |> Seq.sortBy snd |> Seq.map typeMapper |> List.ofSeq |> List.concat
   writeBytes [(gSection TYPE typeSectionData)]
-  writeVarInt (Map.count funEnv.Types) // append number of distinct types
 
   let funBinary = List.map code2bytes funCode
   writeBytes funBinary
