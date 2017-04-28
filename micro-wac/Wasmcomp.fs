@@ -48,7 +48,7 @@ open System
 
 type FunEnv = { Ids:   Map<string, int>;
                 Types: Map<(Typ option * Typ list), int>;
-                Decs:  Map<int, Topdec> }
+                Decs:  Map<int, Topdec>; }
 
 /// VarEnv local keys contain their name and the depth of declaration,
 /// their values contains the ID of the variable and if it is declared in the current scope.
