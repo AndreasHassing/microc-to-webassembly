@@ -294,15 +294,22 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   let writer filename = new BinaryWriter(File.Open(filename, FileMode.Create))
   use wasmFile = writer "comptest.wasm"
   // stream writer helper functions
-  let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat bytes)
-  let writeVarInt n = [i2bNoPad n] |> writeBytes
+  let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) bytes
+  let writeVarInt n = i2bNoPad n |> writeBytes
+  let strToBytes (s : string) = Encoding.ASCII.GetBytes(s) |> Array.toList
+  let ofSeqConcat = List.ofSeq >> List.concat
   let gSection sectionType data =
     getSectionCode sectionType :: i2bNoPad (Seq.length data) @ data
 
-  //#region Write to WASM file
+  //#region WASM Header
   let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
-  writeBytes wasmHeader
-  // Type (1) header
+  List.iter writeBytes wasmHeader
+  //#endregion
+
+  // if there are no types, this module does nothing - return early.
+  if Map.count funEnv.Types = 0 then () else
+
+  //#region Type header [1]
   let typeSectMapper ((retTyp, argTyps), i) =
     getValueTypeCode Func                               // type code
     :: i2bNoPad (List.length argTyps)                   // num of args
@@ -310,18 +317,16 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
     @  match retTyp with                                // number of return types (can only be 1, as of WASM v1.0)
        | Some _ -> [1uy; getValueTypeCode I32]          // the return type
        | None   -> [0uy]                                // ... or nothing returned
-  let typeSectionData = i2bNoPad (Map.count funEnv.Types) @ (funEnv.Types
-                                                             |> Map.toSeq
-                                                             |> Seq.sortBy snd
-                                                             |> Seq.map typeSectMapper
-                                                             |> List.ofSeq
-                                                             |> List.concat)
-  writeBytes [(gSection TYPE typeSectionData)]
-
-  let funBinary = List.map code2bytes funCode
-  writeBytes funBinary
+  let typeSectionData = i2bNoPad (Map.count funEnv.Types)
+                        @ (funEnv.Types |> Map.toSeq
+                                        |> Seq.sortBy snd
+                                        |> Seq.map typeSectMapper
+                                        |> ofSeqConcat)
+  writeBytes (gSection TYPE typeSectionData)
+  //#endregion
   //#endregion
 
-  (gSection TYPE typeSectionData, funBinary, wasmHeader)
+  let functionBinaries = List.map code2bytes funCode
+  List.iter writeBytes functionBinaries
 
 let compileToFile program = (cProgram >> compileWasmBinary) program
