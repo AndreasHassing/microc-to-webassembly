@@ -212,7 +212,7 @@ and cBlock varEnv funEnv depth = function
       let varEnv, stmts =
         List.fold (fun (varEnv, stmts) elem ->
                     let varEnv, stmt = (cStmtOrDec varEnv funEnv depth elem)
-                    varEnv, stmt @ stmts
+                    varEnv, (List.rev stmt) @ stmts
                   ) (varEnv, []) stmtOrDecs
       let varEnv = { varEnv with Locals = discardScopes depth varEnv.Locals }
       varEnv, BLOCK (BVoid) :: (List.rev stmts) @ [END]
