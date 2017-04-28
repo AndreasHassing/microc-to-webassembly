@@ -286,21 +286,20 @@ let code2bytes code =
   List.foldBack emitbytes code []
 
 let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
-  let funBinary = List.map code2bytes funCode
-
-  let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
-
+  // open binary file stream
   let writer filename = new BinaryWriter(File.Open(filename, FileMode.Create))
-
   use wasmFile = writer "comptest.wasm"
+  // stream writer helper functions
+  let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat bytes)
+  let writeVarInt n = [i2bNoPad n] |> writeBytes
 
-  // WASM Header: \0asm, v1
-  List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat wasmHeader)
+  //#region Write to WASM file
+  let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
+  writeBytes wasmHeader
   // Type (1) header
-  wasmFile.Write(1uy) // section code: 0x01
 
-  List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat funBinary)
-
-  (funBinary, wasmHeader)
+  let funBinary = List.map code2bytes funCode
+  writeBytes funBinary
+  //#endregion
 
 let compileToFile program = (cProgram >> compileWasmBinary) program
