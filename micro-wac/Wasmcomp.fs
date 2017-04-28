@@ -293,6 +293,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   // open binary file stream
   let writer filename = new BinaryWriter(File.Open(filename, FileMode.Create))
   use wasmFile = writer "comptest.wasm"
+
   // stream writer helper functions
   let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) bytes
   let writeVarInt n = i2bNoPad n |> writeBytes
@@ -324,6 +325,27 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
                                         |> ofSeqConcat)
   writeBytes (gSection TYPE typeSectionData)
   //#endregion
+
+  //#region Import header [2]
+  let importSectMapper (fieldName, id) =
+    let importNameAsBytes = strToBytes "imports"
+    let fieldNameAsBytes = strToBytes fieldName
+    // TODO: allow import of global variables.
+    //       requires updating the import compilation fold function
+    //       and extending of the abstract syntax, the lexer and parser.
+    let importKind = 0x00uy // 0x00 = function extern type
+    let importFunctionSignatureIndex = i2bNoPad id
+    i2bNoPad (importNameAsBytes.Length) @ importNameAsBytes
+    @ i2bNoPad (fieldNameAsBytes.Length) @ fieldNameAsBytes
+    @ importKind :: importFunctionSignatureIndex
+
+  let importSectionData = i2bNoPad (Map.count imports)
+                          @ (imports |> Map.toSeq
+                                     |> Seq.map importSectMapper
+                                     |> ofSeqConcat)
+  writeBytes (gSection IMPORT importSectionData)
+  //#endregion
+
   //#endregion
 
   let functionBinaries = List.map code2bytes funCode
