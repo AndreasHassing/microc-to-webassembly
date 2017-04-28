@@ -360,7 +360,19 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   writeBytes (gSection FUNCTION funSectionData)
   //#endregion
 
-  let functionBinaries = List.map code2bytes funCode
-  List.iter writeBytes functionBinaries
+  //#region Start header [8]
+  let hasStartFunction =
+    let expectedStartSignature = (None, [])
+    let startFunId = Map.tryFind "start" funEnv.Ids
+    startFunId.IsSome &&
+      (Map.find startFunId.Value funEnv.Decs |> getFunSig) = expectedStartSignature
+  if hasStartFunction
+  then writeBytes (gSection START << i2bNoPad <| Map.find "start" funEnv.Ids)
+  //#endregion
+
+  //#region Code header [10]
+  let funCodeBytes = List.map code2bytes funCode
+  List.iter writeBytes funCodeBytes
+  //#endregion
 
 let compileToFile program = (cProgram >> compileWasmBinary) program
