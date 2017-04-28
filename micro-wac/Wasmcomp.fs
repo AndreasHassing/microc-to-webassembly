@@ -245,7 +245,8 @@ let cProgram (Prog topdecs) =
     | Funsig(imported, _, name, _) as f when imported ->
       let funId = Map.count funEnv.Ids
       (
-        { funEnv with Ids = Map.add name funId funEnv.Ids },
+        { funEnv with Ids = Map.add name funId funEnv.Ids
+                      Decs = Map.add funId f funEnv.Decs },
         Map.add name (Map.find (getFunSig f) funEnv.Types) imports
       )
     | _ -> funEnv, imports
