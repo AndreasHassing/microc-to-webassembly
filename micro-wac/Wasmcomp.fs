@@ -52,7 +52,7 @@ type FunEnv = { Ids:   Map<string, int>;
 
 /// VarEnv local keys contain their name and the depth of declaration,
 /// their values contains the ID of the variable and if it is declared in the current scope.
-type LocVar = { Id: int; InScope: bool; }
+type LocVar = { Id: int; InScope: bool; FunArg: bool; }
 type VarEnv = { Locals:  Map<(string * int), LocVar>;
                 Globals: Map<string, int>; }
 
@@ -109,12 +109,12 @@ let getFunDec funId funEnv =
 let allocateGloVar varEnv name =
   { varEnv with Globals = Map.add name (Map.count varEnv.Globals) varEnv.Globals }
 
-let allocateLocVar varEnv name depth =
+let allocateLocVar varEnv name depth isFunArg =
   let key = name, depth
   let id = if Map.containsKey key varEnv.Locals
            then (Map.find key varEnv.Locals).Id
            else Map.count varEnv.Locals
-  let locVar = { Id = id; InScope = true; }
+  let locVar = { Id = id; InScope = true; FunArg = isFunArg; }
   { varEnv with Locals = Map.add key locVar varEnv.Locals }
 
 let accessVar varEnv depth = function
@@ -193,7 +193,7 @@ let rec cExpr varEnv funEnv depth = function
     then cArgs @ [CALL funId]
     else failwith (sprintf "function %s expects %d args, got %d" name funArgCount cArgs.Length)
 and cStmtOrDec varEnv funEnv depth = function
-  | Dec (typ, name)      -> allocateLocVar varEnv name depth, []
+  | Dec (typ, name)      -> allocateLocVar varEnv name depth false, []
   | Stmt stm             -> cStmt varEnv funEnv depth stm
 and cBlock varEnv funEnv depth = function
   | Block stmtOrDecs ->
@@ -284,7 +284,7 @@ let cProgram (Prog topdecs) =
   let funCodeFolder topdec (varEnvs, code) =
     match topdec with
     | Fundec(_, _, _, args, block) as f ->
-      let argsToLocVars = List.fold (fun env (_, name) -> allocateLocVar env name 0)
+      let argsToLocVars = List.fold (fun env (_, name) -> allocateLocVar env name 0 true)
       let varEnv = argsToLocVars varEnv args
       let varEnv, funCode = cBlock varEnv funEnv 0 block
       // in WASM, functions are a special kind of block without the block OP code, so discard it
@@ -381,8 +381,18 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   //#endregion
 
   //#region Code header [10]
-  let funCodeBytes = List.map code2bytes funCode
-  List.iter writeBytes funCodeBytes
+  let varEnvAndFunCode = List.zip varEnvs funCode
+  let codeSectMapper (varEnv, instrs) =
+    let decCount = Seq.sumBy (fun lv -> if lv.FunArg then 0 else 1) (mapValues varEnv.Locals)
+    let decCountBytes = i2bNoPad decCount
+    let localDecBytes = if decCount = 0
+                        then decCountBytes
+                        else decCountBytes @ decCountBytes @ [getValueTypeCode I32]
+    let codeBytes = localDecBytes @ code2bytes instrs
+    i2bNoPad codeBytes.Length @ codeBytes
+  let codeSectionData = i2bNoPad (funCode.Length)
+                        @ List.concat (List.map codeSectMapper varEnvAndFunCode)
+  writeBytes (gSection CODE codeSectionData)
   //#endregion
 
 let compileToFile program = (cProgram >> compileWasmBinary) program
