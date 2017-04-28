@@ -56,6 +56,9 @@ type LocVar = { Id: int; InScope: bool; }
 type VarEnv = { Locals:  Map<(string * int), LocVar>;
                 Globals: Map<string, int>; }
 
+type VariableIndex = | Glo of int
+                     | Loc of int
+
 let getGlobalVarId name varEnv =
   if Map.containsKey name varEnv.Globals
   then Some (Map.find name varEnv.Globals)
@@ -76,8 +79,8 @@ let rec getLocalVarId (name, depth) varEnv =
 
 let rec varAccess varEnv ((x, depth) as var) =
   match (getLocalVarId var varEnv, getGlobalVarId x varEnv) with
-  | Some varId, _    -> [GET_LOCAL varId]
-  | None, Some varId -> [GET_GLOBAL varId]
+  | Some varId, _    -> Loc varId
+  | None, Some varId -> Glo varId
   | _                -> failwith (sprintf "can't find variable: %s" x)
 
 let getFunSig f =
@@ -113,13 +116,18 @@ let allocateLocVar varEnv name depth =
 
 let accessVar varEnv depth = function
   | AccVar x            -> varAccess varEnv (x, depth)
-  | AccDeref exp        -> [NOP]// *exp
-  | AccIndex (acc, exp) -> [NOP]// acc[exp]
+  | AccDeref exp        -> failwith "Access dereferencing not yet implemented"
+  | AccIndex (acc, exp) -> failwith "Access indexes not yet implemented"
 
 let rec cExpr varEnv funEnv depth = function
-  | Access acc              -> accessVar varEnv depth acc
-  | Assign (acc, exp)       -> [NOP]
-  | Addr acc                -> [NOP]
+  | Access acc              -> match accessVar varEnv depth acc with
+                               | Loc i -> [GET_LOCAL i]
+                               | Glo i -> [GET_LOCAL i]
+  | Assign (acc, exp)       -> cExpr varEnv funEnv depth exp
+                               @ match accessVar varEnv depth acc with
+                                 | Loc i -> [SET_LOCAL i]
+                                 | Glo i -> [SET_GLOBAL i]
+  | Addr acc                -> failwith "Address of variable not yet implemented"
   | Cond (bExp, expT, expF) -> cExpr varEnv funEnv depth expT
                                @ cExpr varEnv funEnv depth expF
                                @ cExpr varEnv funEnv depth bExp
