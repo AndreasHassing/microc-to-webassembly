@@ -59,6 +59,9 @@ type VarEnv = { Locals:  Map<(string * int), LocVar>;
 type VariableIndex = | Glo of int
                      | Loc of int
 
+let mapKeys map = map |> Map.toSeq |> Seq.map fst
+let mapValues map = map |> Map.toSeq |> Seq.map snd
+
 let getGlobalVarId name varEnv =
   if Map.containsKey name varEnv.Globals
   then Some (Map.find name varEnv.Globals)
@@ -197,8 +200,7 @@ and cBlock varEnv funEnv depth = function
       // discard all variables already declared at- and below the current depth
       let discardScopes currentDepth locals =
         locals
-        |> Map.toSeq
-        |> Seq.map fst // get just keys
+        |> mapKeys
         |> Seq.choose (fun ((name, varDepth) as x) ->
             if varDepth >= currentDepth
             then Some(x)
@@ -289,8 +291,7 @@ let cProgram (Prog topdecs) =
       varEnv :: varEnvs, (List.tail funCode) :: code
     | _ -> varEnvs, code
   let varEnvs, funCode =
-    List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq
-                                             |> Seq.map snd
+    List.foldBack funCodeFolder (funEnv.Decs |> mapValues
                                              |> List.ofSeq) ([], [])
 
   funEnv, varEnvs, imports, exports, funCode
