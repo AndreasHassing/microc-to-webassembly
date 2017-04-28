@@ -292,14 +292,28 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   // stream writer helper functions
   let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) (List.concat bytes)
   let writeVarInt n = [i2bNoPad n] |> writeBytes
+  let gSection sectionType data =
+    getSectionCode sectionType :: i2bNoPad (Seq.length data) @ data
 
   //#region Write to WASM file
   let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
   writeBytes wasmHeader
   // Type (1) header
+  let typeMapper ((retTyp, argTyps), i) =
+    getValueTypeCode Func                               // type code
+    :: i2bNoPad (List.length argTyps)                   // num of args
+    @  List.map (fun _ -> getValueTypeCode I32) argTyps // arg types
+    @  match retTyp with                                // number of return types (can only be 1, as of WASM v1.0)
+       | Some _ -> [1uy; getValueTypeCode I32]          // the return type
+       | None   -> [0uy]                                // ... or nothing returned
+  let typeSectionData = funEnv.Types |> Map.toSeq |> Seq.sortBy snd |> Seq.map typeMapper |> List.ofSeq |> List.concat
+  writeBytes [(gSection TYPE typeSectionData)]
+  writeVarInt (Map.count funEnv.Types) // append number of distinct types
 
   let funBinary = List.map code2bytes funCode
   writeBytes funBinary
   //#endregion
+
+  (gSection TYPE typeSectionData, funBinary, wasmHeader)
 
 let compileToFile program = (cProgram >> compileWasmBinary) program
