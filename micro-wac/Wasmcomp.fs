@@ -346,6 +346,18 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   writeBytes (gSection IMPORT importSectionData)
   //#endregion
 
+  //#region Function header [3]
+  let funcSectMapper funDec =
+    i2bNoPad (Map.find (getFunSig funDec) funEnv.Types)
+  let funDecs = funEnv.Decs |> Map.toSeq
+                            |> Seq.sortBy fst
+                            |> Seq.choose (fun (_, dec) -> match dec with
+                                                           | Fundec _ -> Some dec
+                                                           | _        -> None)
+  let funSectionData = i2bNoPad (Seq.length funDecs)
+                       @ (funDecs |> Seq.map funcSectMapper
+                                  |> ofSeqConcat)
+  writeBytes (gSection FUNCTION funSectionData)
   //#endregion
 
   let functionBinaries = List.map code2bytes funCode
