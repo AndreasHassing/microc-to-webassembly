@@ -194,18 +194,19 @@ and cStmtOrDec varEnv funEnv depth = function
   | Stmt stm             -> cStmt varEnv funEnv depth stm
 and cBlock varEnv funEnv depth = function
   | Block stmtOrDecs ->
+      // discard all variables already declared at- and below the current depth
       let discardScopes currentDepth locals =
         locals
         |> Map.toSeq
-        |> Seq.map fst // get keys
-        |> Seq.choose (fun ((name, varDepth) as x) -> // get keys with depth >= currentDepth
+        |> Seq.map fst // get just keys
+        |> Seq.choose (fun ((name, varDepth) as x) ->
             if varDepth >= currentDepth
             then Some(x)
             else None
           )
         |> Seq.fold (fun locals key ->
-             // it could look like we find locals with scope set to false here,
-             // however it is just record notation for setting InScope to false
+             // it may look like we try to find locals with scope set to false here,
+             // however, it is just record notation for setting InScope to false
              Map.add key { Map.find key locals with InScope = false } locals
            ) locals
 
