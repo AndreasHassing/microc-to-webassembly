@@ -299,14 +299,19 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
   writeBytes wasmHeader
   // Type (1) header
-  let typeMapper ((retTyp, argTyps), i) =
+  let typeSectMapper ((retTyp, argTyps), i) =
     getValueTypeCode Func                               // type code
     :: i2bNoPad (List.length argTyps)                   // num of args
     @  List.map (fun _ -> getValueTypeCode I32) argTyps // arg types
     @  match retTyp with                                // number of return types (can only be 1, as of WASM v1.0)
        | Some _ -> [1uy; getValueTypeCode I32]          // the return type
        | None   -> [0uy]                                // ... or nothing returned
-  let typeSectionData = funEnv.Types |> Map.toSeq |> Seq.sortBy snd |> Seq.map typeMapper |> List.ofSeq |> List.concat
+  let typeSectionData = i2bNoPad (Map.count funEnv.Types) @ (funEnv.Types
+                                                             |> Map.toSeq
+                                                             |> Seq.sortBy snd
+                                                             |> Seq.map typeSectMapper
+                                                             |> List.ofSeq
+                                                             |> List.concat)
   writeBytes [(gSection TYPE typeSectionData)]
 
   let funBinary = List.map code2bytes funCode
