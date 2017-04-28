@@ -320,7 +320,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   // if there are no types, this module does nothing - return early.
   if Map.count funEnv.Types = 0 then () else
 
-  //#region Type header [1]
+  //#region Type section [1]
   let typeSectMapper ((retTyp, argTyps), i) =
     getValueTypeCode Func                               // type code
     :: i2bNoPad (List.length argTyps)                   // num of args
@@ -336,7 +336,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   writeBytes (gSection TYPE typeSectionData)
   //#endregion
 
-  //#region Import header [2]
+  //#region Import section [2]
   let importSectMapper (fieldName, id) =
     let importNameAsBytes = strToBytes "imports"
     let fieldNameAsBytes = strToBytes fieldName
@@ -356,7 +356,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   writeBytes (gSection IMPORT importSectionData)
   //#endregion
 
-  //#region Function header [3]
+  //#region Function section [3]
   let funcSectMapper funDec =
     i2bNoPad (Map.find (getFunSig funDec) funEnv.Types)
   let funDecs = funEnv.Decs |> Map.toSeq
@@ -370,7 +370,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   writeBytes (gSection FUNCTION funSectionData)
   //#endregion
 
-  //#region Start header [8]
+  //#region Start section [8]
   let hasStartFunction =
     let expectedStartSignature = (None, [])
     let startFunId = Map.tryFind "start" funEnv.Ids
@@ -380,7 +380,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   then writeBytes (gSection START << i2bNoPad <| Map.find "start" funEnv.Ids)
   //#endregion
 
-  //#region Code header [10]
+  //#region Code section [10]
   let varEnvAndFunCode = List.zip varEnvs funCode
   let codeSectMapper (varEnv, instrs) =
     let decCount = Seq.sumBy (fun lv -> if lv.FunArg then 0 else 1) (mapValues varEnv.Locals)
