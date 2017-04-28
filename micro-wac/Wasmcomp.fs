@@ -187,7 +187,8 @@ and cStmtOrDec varEnv funEnv depth = function
 and cBlock varEnv funEnv depth = function
   | Block stmtOrDecs ->
       let discardScopes currentDepth locals =
-        locals |> Map.toSeq
+        locals
+        |> Map.toSeq
         |> Seq.map fst // get keys
         |> Seq.choose (fun ((name, varDepth) as x) -> // get keys with depth >= currentDepth
             if varDepth >= currentDepth
@@ -278,7 +279,10 @@ let cProgram (Prog topdecs) =
       // in WASM, functions are a special kind of block without the block OP code, so discard it
       varEnv :: varEnvs, (List.tail funCode) :: code
     | _ -> varEnvs, code
-  let varEnvs, funCode = List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq |> Seq.map snd |> List.ofSeq) ([], [])
+  let varEnvs, funCode =
+    List.foldBack funCodeFolder (funEnv.Decs |> Map.toSeq
+                                             |> Seq.map snd
+                                             |> List.ofSeq) ([], [])
 
   funEnv, varEnvs, imports, exports, funCode
 
