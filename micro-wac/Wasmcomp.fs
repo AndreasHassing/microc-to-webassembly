@@ -178,9 +178,9 @@ let rec cExpr varEnv funEnv depth = function
     let cArgs = List.concat (List.map (fun e -> cExpr varEnv funEnv depth e) argExprs)
     let funId = getFunId name funEnv
     let funArgCount = List.length (snd (getFunSig (getFunDec funId funEnv)))
-    if cArgs.Length <> funArgCount
-    then failwith (sprintf "function %s expects %d args, got %d" name cArgs.Length funArgCount)
-    else cArgs @ [CALL funId]
+    if cArgs.Length = funArgCount
+    then cArgs @ [CALL funId]
+    else failwith (sprintf "function %s expects %d args, got %d" name funArgCount cArgs.Length)
 and cStmtOrDec varEnv funEnv depth = function
   | Dec (typ, name)      -> allocateLocVar varEnv name depth, []
   | Stmt stm             -> cStmt varEnv funEnv depth stm
