@@ -1,13 +1,16 @@
-void main() {
+import void printi(int x);
+
+void start()
+{
 	// addition
-	print (5 + 7);
+	printi(5 + 7);
 
 	// subtraction
-	print (12 - 5);
+	printi(12 - 5);
 
 	// multiplication
-	print (4 * 9);
+	printi(4 * 9);
 
 	// division
-	print (12 / 2);
+	printi(12 / 2);
 }

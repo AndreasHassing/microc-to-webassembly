@@ -1,8 +1,9 @@
 import void printi(int a);
 
-export int test() {
+export int test()
+{
 	int x;
-	x = 5 + 3;
+	x = 40 + 2;
 
 	printi(x);
 

@@ -1,4 +1,3 @@
-void main() {
-	int x;
-	x = 5 + 3;
-}
+// This function does nothing,
+// but shows how the start function is compiled
+void start() {}

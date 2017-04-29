@@ -5,10 +5,8 @@
     i32.const 40
     i32.const 2
     i32.add
-    tee_local 0
+    set_local 0
+    get_local 0
     call $printi
     get_local 0)
-  (func $internaltest
-    call $test
-    drop)
 )
