@@ -370,6 +370,18 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   writeBytes (gSection FUNCTION funSectionData)
   //#endregion
 
+  //#region Memory section [5] W.I.P.
+
+  //#endregion
+
+  //#region Global section [6] W.I.P.
+
+  //#endregion
+
+  //#region Export section [7] W.I.P.
+
+  //#endregion
+
   //#region Start section [8]
   let hasStartFunction =
     let expectedStartSignature = (None, [])
@@ -395,6 +407,10 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   let codeSectionData = i2bNoPad (funCode.Length)
                         @ List.concat (List.map codeSectMapper varEnvAndFunCode)
   writeBytes (gSection CODE codeSectionData)
+  //#endregion
+
+  //#region Data section [11] W.I.P.
+
   //#endregion
 
 let compileToFile program = (cProgram >> compileWasmBinary) program
