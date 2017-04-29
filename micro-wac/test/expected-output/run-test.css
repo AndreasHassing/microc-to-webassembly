@@ -1,0 +1,28 @@
+div {
+	padding: 20px;
+}
+
+input,
+select,
+button {
+	margin-bottom: 10px;
+}
+
+select {
+	min-width: 70px;
+}
+
+ul {
+	display: inline;
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+}
+
+li {
+	float: left;
+}
+
+li>input {
+	width: 50px;
+}

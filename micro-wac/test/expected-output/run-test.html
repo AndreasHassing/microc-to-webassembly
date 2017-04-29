@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<title>Run WASM Samples</title>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" type="text/css" href="run-test.css">
+		<script src="run-test-available.js"></script>
+	</head>
+
+	<body>
+		<div>
+			<form>
+				<label for="module">WASM Module to run</label>
+				<select id="module">
+					<!-- WASM Modules are generated here when the document has loaded -->
+				</select>
+				<button id="runStart">Compile (also runs start function)</button>
+				<br>
+				<label for="functionNames">Function name</label>
+				<select id="functionNames" disabled>
+					<!-- Function name options are generated here after module compilation -->
+				</select>
+				<br>
+				<button id="runFunction" disabled>Run function</button>
+			</form>
+		</div>
+
+		<script src="run-test.js"></script>
+	</body>
+
+</html>
