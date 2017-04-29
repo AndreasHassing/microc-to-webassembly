@@ -387,6 +387,8 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
     let decCountBytes = i2bNoPad decCount
     let localDecBytes = if decCount = 0
                         then decCountBytes
+                        // between MicroC and Wasm there is only 1 data type available: i32
+                        // so # of params is also # of type i32 params
                         else decCountBytes @ decCountBytes @ [getValueTypeCode I32]
     let codeBytes = localDecBytes @ code2bytes instrs
     i2bNoPad codeBytes.Length @ codeBytes
