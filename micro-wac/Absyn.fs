@@ -2,7 +2,10 @@
    Abstract syntax of micro-C, an imperative language.
    sestoft@itu.dk 2009-09-25
 
-   Must precede Interp.fs, Comp.fs and Contcomp.fs in Solution Explorer
+   Extended by abhn@itu.dk in 2017 (Andreas Bjørn Hassing Nielsen)
+   - Add Funsig and allow export of Fundec's (for WASM exportability).
+
+   Must precede Wasmcomp.fs in Solution Explorer
  *)
 
 module MicroWac.Absyn

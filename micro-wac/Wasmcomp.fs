@@ -34,21 +34,19 @@
 
 module MicroWac.Wasmcomp
 
-open System.IO
 open Absyn
-open WasmMachine
-open System.Text
 open System
-
-(* ------------------------------------------------------------------- *)
+open System.IO
+open System.Text
+open WasmMachine
 
 type FunEnv = { Ids:   Map<string, int>;
                 Types: Map<(Typ option * Typ list), int>;
                 Decs:  Map<int, Topdec>; }
 
 type LocVar = { Id: int; InScope: bool; FunArg: bool; }
-/// Keys of VarEnv Locals contain their name and the depth of declaration,
-/// their values contains the ID of the variable and if it is declared in the current scope.
+// Keys of VarEnv Locals contain their name and the depth of declaration,
+// their values contains the ID of the variable and if it is declared in the current scope.
 type VarEnv = { Locals:  Map<(string * int), LocVar>;
                 Globals: Map<string, int>; }
 
