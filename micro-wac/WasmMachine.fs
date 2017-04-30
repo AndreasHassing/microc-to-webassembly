@@ -11,53 +11,7 @@
 
 module MicroWac.WasmMachine
 
-type UInt8 = UInt8 of uint8
-type UInt16 = UInt16 of uint16
-type UInt32 = UInt32 of uint32
-
-type Bit =
-  | Bit of bool // hack to emulate a single bit
-  override b.ToString() = let (Bit bitValue) = b
-                          if bitValue then "1" else "0"
-
-type Varuint1 = Varuint1 of Bit
-
-// 7 bits unsigned goes from 0..+127
-type Varuint7 =
-  | Varuint7 of Bit * Bit * Bit * Bit * Bit * Bit * Bit
-  override bits.ToString() =
-    match bits with
-    | Varuint7(a, b, c, d, e, f, g) ->
-        a.ToString() + b.ToString() + c.ToString() +
-        d.ToString() + e.ToString() + f.ToString() +
-        g.ToString()
-
-type Varuint32 =  Varuint32 of uint32
-
-let nthBit n x =
-  if n >= 32 || n < 0 then failwith "nthBit only works on integers"
-  (x >>> n) &&& 1
-
-let makeBit n = Bit (if n > 0 then true else false)
-let makeVaruint7 n =
-  if n > 0b1111111 || n < 0b0000000
-  then failwith "Can only make varuint7 of a number within the range 0-127"
-  // make bit for nth bit in x
-  let mbf n x = nthBit n x |> makeBit
-  Varuint7 (mbf 6 n, mbf 5 n, mbf 4 n, mbf 3 n, mbf 2 n, mbf 1 n, mbf 0 n)
-
-// 7 bits signed goes from -64..+63 (twos complement)
-type Varint7 = Varint7 of int8
-type Varint32 = Varint32 of int32
-type Varint64 = Varint64 of int64
-
-let makeVarint7 n =
-  if n > 63 || n < -64
-  then failwith "Can only make varint7 of a number within the range (-63..+64)"
-  Varint7(int8(n))
-
 type Index = int
-
 type RelativeDepth = byte
 
 type ValueType =
@@ -68,9 +22,6 @@ type ValueType =
 type BlockType =
   | BReturn of ValueType                (* single result *)
   | BVoid                               (* 0 results     *)
-
-// The function type
-type FuncType = FT of Varint7 * Varuint32 * ValueType list option * Varuint1 * ValueType option
 
 let getValueTypeCode = function
   | I32     -> 0x7fuy
@@ -144,21 +95,6 @@ type Instruction =
   // Memory-related operators -- NOT IMPLEMENTED DUE TO TIME CONSTRAINTS
   // Conversions (no need to implement, not supported by MicroC)
   // Reinterpretations (no need to implement, not supported by MicroC)
-
-(* Simple environment operations *)
-
-type 'data Env = (string * 'data) list
-
-let rec lookup env x =
-  match env with
-  | []         -> failwith (x + " not found")
-  | (y, v)::yr -> if x=y then v else lookup yr x
-
-(* An instruction list is emitted in two phases:
-   * pass 1 builds an environment labenv mapping labels to addresses
-   * pass 2 emits the code to file, using the environment labenv to
-     resolve labels
- *)
 
 let getOpCode = function
   // Language types
@@ -246,11 +182,6 @@ let getSectionCode = function
   | CODE     -> 10uy
   | DATA     -> 11uy
 
-(* Bytecode emission, first pass: build environment that maps
-   each label to an integer address in the bytecode.
- *)
-
-(* Bytecode emission, second pass: output bytecode as integers *)
 open System
 open System.Linq
 
@@ -284,11 +215,3 @@ let emitbytes instr bytes =
   | I32_CONST n                -> opCode :: i2bNoPad n @ bytes
   // IMMEDIATE-FREE OPERATORS
   | _                          -> opCode :: bytes
-
-//let code2bytes code =
-//  let wasmBinaryMagicNumber = 0x0061736du
-//  let wasmBinaryVersionNumber = 0x01000000u
-//  let wasmHeader = [uintToBytes wasmBinaryMagicNumber; uintToBytes wasmBinaryVersionNumber]
-
-//  let opSeparatedBytes = List.foldBack emitbytes code wasmHeader
-//  List.concat opSeparatedBytes
