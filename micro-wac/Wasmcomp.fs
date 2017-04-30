@@ -312,6 +312,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   let mapToSeqSortedBy f map = map |> Map.toSeq |> Seq.sortBy f
   let gSection sectionType data =
     getSectionCode sectionType :: i2bNoPad (Seq.length data) @ data
+  let writeSection sectionType = (gSection sectionType) >> writeBytes
 
   //#region WASM Header [0]
   let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
@@ -333,7 +334,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
                         @ (funEnv.Types |> mapToSeqSortedBy snd
                                         |> Seq.map typeSectMapper
                                         |> ofSeqConcat)
-  writeBytes (gSection TYPE typeSectionData)
+  writeSection TYPE typeSectionData
   //#endregion
 
   //#region Import section [2]
@@ -353,7 +354,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
                           @ (imports |> mapToSeqSortedBy snd
                                      |> Seq.map importSectMapper
                                      |> ofSeqConcat)
-  writeBytes (gSection IMPORT importSectionData)
+  writeSection IMPORT importSectionData
   //#endregion
 
   //#region Function section [3]
@@ -366,7 +367,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   let funSectionData = i2bNoPad (Seq.length funDecs)
                        @ (funDecs |> Seq.map funcSectMapper
                                   |> ofSeqConcat)
-  writeBytes (gSection FUNCTION funSectionData)
+  writeSection FUNCTION funSectionData
   //#endregion
 
   //#region Memory section [5] W.I.P.
@@ -384,7 +385,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
                           @ (globals |> mapToSeqSortedBy snd
                                      |> Seq.map globalSectMapper
                                      |> ofSeqConcat)
-  writeBytes (gSection GLOBAL globalSectionData)
+  writeSection GLOBAL globalSectionData
   //#endregion
 
   //#region Export section [7] W.I.P.
@@ -396,7 +397,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   match Map.tryFind "start" funEnv.Ids with
   | Some id -> let startFunSignature = getFunSig (Map.find id funEnv.Decs)
                if startFunSignature = expectedStartSignature
-               then writeBytes (gSection START (i2bNoPad id))
+               then writeSection START (i2bNoPad id)
                else failwith "start function has arguments or a return value"
   | None    -> ()
   //#endregion
@@ -415,7 +416,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     i2bNoPad codeBytes.Length @ codeBytes
   let codeSectionData = i2bNoPad (funCode.Length)
                         @ List.concat (List.map codeSectMapper varEnvAndFunCode)
-  writeBytes (gSection CODE codeSectionData)
+  writeSection CODE codeSectionData
   //#endregion
 
   //#region Data section [11] W.I.P.
