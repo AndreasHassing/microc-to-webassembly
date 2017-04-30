@@ -42,7 +42,7 @@ let cEscape s =
   | "\\v"  -> '\011'
   | "\\f"  -> '\012'
   | "\\r"  -> '\r'
-  | _      -> failwith "Lexer error: impossible C escape"
+  | _      -> failwith (sprintf "Lexer error: impossible C escape: %s" s)
 
 # 47 "..\..\CLex.fs"
 let trans : uint16[] array = 

@@ -18,11 +18,11 @@ let nl = CstI 10
 
 let exportFundec = function
   | Fundec(_, typ, name, pardecs, block) -> Fundec(true, typ, name, pardecs, block)
-  | _ -> failwith "can only export function declarations"
+  | td -> failwith (sprintf "can only export function declarations, not %A" td)
 
 let importFunsig = function
   | Funsig(_, typ, name, pardecs) -> Funsig(true, typ, name, pardecs)
-  | _ -> failwith "can only import function signatures"
+  | td -> failwith (sprintf "can only import function signatures, not %A" td)
 
 # 27 "..\..\CPar.fs"
 // This type is the type of tokens accepted by the parser
