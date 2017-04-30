@@ -392,13 +392,13 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   //#endregion
 
   //#region Start section [8]
-  let hasStartFunction =
-    let expectedStartSignature = (None, [])
-    let startFunId = Map.tryFind "start" funEnv.Ids
-    startFunId.IsSome &&
-      (Map.find startFunId.Value funEnv.Decs |> getFunSig) = expectedStartSignature
-  if hasStartFunction
-  then writeBytes (gSection START << i2bNoPad <| Map.find "start" funEnv.Ids)
+  let expectedStartSignature = (None, [])
+  match Map.tryFind "start" funEnv.Ids with
+  | Some id -> let startFunSignature = getFunSig (Map.find id funEnv.Decs)
+               if startFunSignature = expectedStartSignature
+               then writeBytes (gSection START (i2bNoPad id))
+               else failwith "start function has arguments or a return value"
+  | None    -> ()
   //#endregion
 
   //#region Code section [10]
