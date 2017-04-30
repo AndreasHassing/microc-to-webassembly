@@ -27,18 +27,17 @@ let renameExtension filename (toExt: string) =
   then filenameWithoutExtension + toExt
   else filenameWithoutExtension + "." + toExt
 
-//[<EntryPoint>]
-//let main argv =
-//  let opts = parseCommandLine (List.ofArray argv)
+[<EntryPoint>]
+let main argv =
+  let opts = parseCommandLine (List.ofArray argv)
 
-//  if opts.error || opts.cfile = "" then 1 else
+  if opts.error || opts.cfile = "" then printHelpMsg (); 1 else
 
-//  if opts.verbose then printfn "Compiling %s to WebAssembly Binary" opts.cfile
+  if opts.verbose then printfn "Compiling %s to WebAssembly Binary" opts.cfile
 
-//  let programAsAST = Parse.fromFile opts.cfile
-//  let wasmFilename = renameExtension opts.cfile "wasm"
-//  Wasmcomp.compileToFile programAsAST wasmFilename
+  let programAsAST = Parse.fromFile opts.cfile
+  let wasmFilename = renameExtension opts.cfile "wasm"
+  Wasmcomp.compileToFile wasmFilename programAsAST
 
-//  // pause until user presses a key
-//  System.Console.ReadLine() |> ignore
-//  0 // return an integer exit code
+  if opts.verbose then printfn "Finished compiling to %s" wasmFilename
+  0 // return an integer exit code; 0 means A-OK
