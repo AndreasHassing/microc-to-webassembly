@@ -374,8 +374,19 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
 
   //#endregion
 
-  //#region Global section [6] W.I.P.
-
+  //#region Global section [6]
+  let globalSectMapper (name, id) =
+    let mutabilityCode = 1uy // all globals in MicroC are mutable
+    getValueTypeCode I32
+    :: mutabilityCode
+    :: List.concat (List.map (fun i -> emitbytes i []) [I32_CONST 0; END])
+  let globals = (List.head varEnvs).Globals
+  let globalSectionData = i2bNoPad (Map.count globals)
+                          @ (globals |> Map.toSeq
+                                     |> Seq.sortBy snd
+                                     |> Seq.map globalSectMapper
+                                     |> ofSeqConcat)
+  writeBytes (gSection GLOBAL globalSectionData)
   //#endregion
 
   //#region Export section [7] W.I.P.
