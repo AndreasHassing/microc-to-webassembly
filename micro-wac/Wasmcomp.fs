@@ -40,6 +40,7 @@ open System.IO
 open System.Text
 open WasmMachine
 
+//#region Environment types
 type FunEnv = { Ids:   Map<string, int>;
                 Types: Map<(Typ option * Typ list), int>;
                 Decs:  Map<int, Topdec>; }
@@ -52,9 +53,19 @@ type VarEnv = { Locals:  Map<(string * int), LocVar>;
 
 type VariableIndex = | Glo of int
                      | Loc of int
+//#endregion
 
-let mapKeys map = map |> Map.toSeq |> Seq.map fst
-let mapValues map = map |> Map.toSeq |> Seq.map snd
+//#region Local and Global variable helper functions
+let allocateGloVar varEnv name =
+  { varEnv with Globals = Map.add name (Map.count varEnv.Globals) varEnv.Globals }
+
+let allocateLocVar varEnv name depth isFunArg =
+  let key = name, depth
+  let id = if Map.containsKey key varEnv.Locals
+           then (Map.find key varEnv.Locals).Id
+           else Map.count varEnv.Locals
+  let locVar = { Id = id; InScope = true; FunArg = isFunArg; }
+  { varEnv with Locals = Map.add key locVar varEnv.Locals }
 
 let getGlobalVarId name varEnv =
   if Map.containsKey name varEnv.Globals
@@ -74,12 +85,19 @@ let rec getLocalVarId (name, depth) varEnv =
     else getLocalVarId (name, depth-1) varEnv
   | _ -> failwith (sprintf "negative depth lookup: %s at depth %d" name depth)
 
-let rec varAccess varEnv ((x, depth) as var) =
+let rec varAccessAtDepth varEnv ((x, depth) as var) =
   match (getLocalVarId var varEnv, getGlobalVarId x varEnv) with
   | Some varId, _    -> Loc varId
   | None, Some varId -> Glo varId
   | _                -> failwith (sprintf "can't find variable: %s" x)
 
+let accessVar varEnv depth = function
+  | AccVar x            -> varAccessAtDepth varEnv (x, depth)
+  | AccDeref exp        -> failwith "Access dereferencing not yet implemented"
+  | AccIndex (acc, exp) -> failwith "Access indexes not yet implemented"
+//#endregion
+
+//#region Function helper functions
 let getFunSig f =
   let getArgTypes types (typ, _) = typ :: types
   match f with
@@ -98,22 +116,12 @@ let getFunId name funEnv =
 
 let getFunDec funId funEnv =
   Map.find funId funEnv.Decs
+//#endregion
 
-let allocateGloVar varEnv name =
-  { varEnv with Globals = Map.add name (Map.count varEnv.Globals) varEnv.Globals }
-
-let allocateLocVar varEnv name depth isFunArg =
-  let key = name, depth
-  let id = if Map.containsKey key varEnv.Locals
-           then (Map.find key varEnv.Locals).Id
-           else Map.count varEnv.Locals
-  let locVar = { Id = id; InScope = true; FunArg = isFunArg; }
-  { varEnv with Locals = Map.add key locVar varEnv.Locals }
-
-let accessVar varEnv depth = function
-  | AccVar x            -> varAccess varEnv (x, depth)
-  | AccDeref exp        -> failwith "Access dereferencing not yet implemented"
-  | AccIndex (acc, exp) -> failwith "Access indexes not yet implemented"
+/// Get the keys of a map, as a sequence.
+let mapKeys map = map |> Map.toSeq |> Seq.map fst
+/// Get the values of a map, as a sequence.
+let mapValues map = map |> Map.toSeq |> Seq.map snd
 
 let rec cExpr varEnv funEnv depth = function
   | Access acc              -> match accessVar varEnv depth acc with
