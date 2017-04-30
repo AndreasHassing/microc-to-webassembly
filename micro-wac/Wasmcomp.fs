@@ -125,7 +125,7 @@ let accessVar varEnv depth = function
 let rec cExpr varEnv funEnv depth = function
   | Access acc              -> match accessVar varEnv depth acc with
                                | Loc i -> [GET_LOCAL i]
-                               | Glo i -> [GET_LOCAL i]
+                               | Glo i -> [GET_GLOBAL i]
   | Assign (acc, exp)       -> cExpr varEnv funEnv depth exp
                                @ match accessVar varEnv depth acc with
                                  | Loc i -> [SET_LOCAL i]
@@ -388,8 +388,18 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     writeSection GLOBAL globalSectionData
   //#endregion
 
-  //#region Export section [7] W.I.P.
-
+  //#region Export section [7]
+  let exportSectMapper (name, id) =
+    let nameAsBytes = strToBytes name
+    let exportKind = 0x00uy // 0x00 = function extern type
+    i2bNoPad (nameAsBytes.Length) @ nameAsBytes
+    @ exportKind :: i2bNoPad id
+  if (Map.count exports) > 0 then
+    let exportSectionData = i2bNoPad (Map.count exports)
+                          @ (exports |> mapToSeqSortedBy snd
+                                     |> Seq.map exportSectMapper
+                                     |> ofSeqConcat)
+    writeSection EXPORT exportSectionData
   //#endregion
 
   //#region Start section [8]
