@@ -299,10 +299,10 @@ let cProgram (Prog topdecs) =
 let code2bytes code =
   List.foldBack emitbytes code []
 
-let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
+let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   // open binary file stream
   let writer filename = new BinaryWriter(File.Open(filename, FileMode.Create))
-  use wasmFile = writer "comptest.wasm"
+  use wasmFile = writer fileName
 
   // stream writer helper functions
   let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) bytes
@@ -312,7 +312,7 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
   let gSection sectionType data =
     getSectionCode sectionType :: i2bNoPad (Seq.length data) @ data
 
-  //#region WASM Header
+  //#region WASM Header [0]
   let wasmHeader = [i2b 0x0061736D; i2b 0x01000000]
   List.iter writeBytes wasmHeader
   //#endregion
@@ -424,4 +424,4 @@ let compileWasmBinary (funEnv, varEnvs, imports, exports, funCode) =
 
   //#endregion
 
-let compileToFile program = (cProgram >> compileWasmBinary) program
+let compileToFile fileName program = (cProgram >> compileWasmBinary fileName) program
