@@ -61,15 +61,17 @@
     <None Include="App.config" />
     <Content Include="packages.config" />
     <Compile Include="Absyn.fs" />
+    <None Include="CPar.fsy" />
     <Compile Include="CPar.fsi" />
     <Compile Include="CPar.fs" />
+    <None Include="CLex.fsl" />
     <Compile Include="CLex.fs" />
     <Compile Include="Parse.fs" />
+    <Compile Include="WasmMachine.fsi" />
     <Compile Include="WasmMachine.fs" />
+    <Compile Include="Wasmcomp.fsi" />
     <Compile Include="Wasmcomp.fs" />
     <Compile Include="Program.fs" />
-    <None Include="CLex.fsl" />
-    <None Include="CPar.fsy" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">
