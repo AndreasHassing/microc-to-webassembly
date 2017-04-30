@@ -319,9 +319,6 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   List.iter writeBytes wasmHeader
   //#endregion
 
-  // if there are no types or exports, this module does nothing - return early.
-  if Map.count funEnv.Types = 0 && Map.count exports = 0 then () else
-
   //#region Type section [1]
   let typeSectMapper ((retTyp, argTyps), i) =
     getValueTypeCode Func                               // type code
@@ -330,11 +327,12 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     @  match retTyp with                                // number of return types (can only be 1, as of WASM v1.0)
        | Some _ -> [1uy; getValueTypeCode I32]          // the return type
        | None   -> [0uy]                                // ... or nothing returned
-  let typeSectionData = i2bNoPad (Map.count funEnv.Types)
+  if (Map.count funEnv.Types) > 0 then
+    let typeSectionData = i2bNoPad (Map.count funEnv.Types)
                         @ (funEnv.Types |> mapToSeqSortedBy snd
                                         |> Seq.map typeSectMapper
                                         |> ofSeqConcat)
-  writeSection TYPE typeSectionData
+    writeSection TYPE typeSectionData
   //#endregion
 
   //#region Import section [2]
@@ -349,25 +347,26 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     i2bNoPad (importNameAsBytes.Length) @ importNameAsBytes
     @ i2bNoPad (fieldNameAsBytes.Length) @ fieldNameAsBytes
     @ importKind :: importFunctionSignatureIndex
-
-  let importSectionData = i2bNoPad (Map.count imports)
-                          @ (imports |> mapToSeqSortedBy snd
-                                     |> Seq.map importSectMapper
-                                     |> ofSeqConcat)
-  writeSection IMPORT importSectionData
+  if (Map.count imports) > 0 then
+    let importSectionData = i2bNoPad (Map.count imports)
+                            @ (imports |> mapToSeqSortedBy snd
+                                       |> Seq.map importSectMapper
+                                       |> ofSeqConcat)
+    writeSection IMPORT importSectionData
   //#endregion
 
   //#region Function section [3]
   let funcSectMapper funDec =
     i2bNoPad (Map.find (getFunSig funDec) funEnv.Types)
-  let funDecs = funEnv.Decs |> mapToSeqSortedBy fst
-                            |> Seq.choose (fun (_, dec) -> match dec with
-                                                           | Fundec _ -> Some dec
-                                                           | _        -> None)
-  let funSectionData = i2bNoPad (Seq.length funDecs)
-                       @ (funDecs |> Seq.map funcSectMapper
-                                  |> ofSeqConcat)
-  writeSection FUNCTION funSectionData
+  if (Map.count funEnv.Decs) > 0 then
+    let funDecs = funEnv.Decs |> mapToSeqSortedBy fst
+                              |> Seq.choose (fun (_, dec) -> match dec with
+                                                             | Fundec _ -> Some dec
+                                                             | _        -> None)
+    let funSectionData = i2bNoPad (Seq.length funDecs)
+                         @ (funDecs |> Seq.map funcSectMapper
+                                    |> ofSeqConcat)
+    writeSection FUNCTION funSectionData
   //#endregion
 
   //#region Memory section [5] W.I.P.
@@ -381,11 +380,12 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     :: mutabilityCode
     :: List.concat (List.map (fun i -> emitbytes i []) [I32_CONST 0; END])
   let globals = (List.head varEnvs).Globals
-  let globalSectionData = i2bNoPad (Map.count globals)
+  if (Map.count globals) > 0 then
+    let globalSectionData = i2bNoPad (Map.count globals)
                           @ (globals |> mapToSeqSortedBy snd
                                      |> Seq.map globalSectMapper
                                      |> ofSeqConcat)
-  writeSection GLOBAL globalSectionData
+    writeSection GLOBAL globalSectionData
   //#endregion
 
   //#region Export section [7] W.I.P.
@@ -414,9 +414,10 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
                         else decCountBytes @ decCountBytes @ [getValueTypeCode I32]
     let codeBytes = localDecBytes @ code2bytes instrs
     i2bNoPad codeBytes.Length @ codeBytes
-  let codeSectionData = i2bNoPad (funCode.Length)
-                        @ List.concat (List.map codeSectMapper varEnvAndFunCode)
-  writeSection CODE codeSectionData
+  if (List.length varEnvAndFunCode) > 0 then
+    let codeSectionData = i2bNoPad (funCode.Length)
+                          @ List.concat (List.map codeSectMapper varEnvAndFunCode)
+    writeSection CODE codeSectionData
   //#endregion
 
   //#region Data section [11] W.I.P.
