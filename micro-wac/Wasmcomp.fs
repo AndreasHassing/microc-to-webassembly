@@ -42,17 +42,13 @@ open System
 
 (* ------------------------------------------------------------------- *)
 
-// Recipe for progress (compiler recipe for MicroC -> WebAssembly)
-// 1. Construct WASM headers
-// 2. Construct type section (count distinct function types)
-
 type FunEnv = { Ids:   Map<string, int>;
                 Types: Map<(Typ option * Typ list), int>;
                 Decs:  Map<int, Topdec>; }
 
-/// VarEnv local keys contain their name and the depth of declaration,
-/// their values contains the ID of the variable and if it is declared in the current scope.
 type LocVar = { Id: int; InScope: bool; FunArg: bool; }
+/// Keys of VarEnv Locals contain their name and the depth of declaration,
+/// their values contains the ID of the variable and if it is declared in the current scope.
 type VarEnv = { Locals:  Map<(string * int), LocVar>;
                 Globals: Map<string, int>; }
 
@@ -105,7 +101,6 @@ let getFunId name funEnv =
 let getFunDec funId funEnv =
   Map.find funId funEnv.Decs
 
-/// Depth is not used for globals
 let allocateGloVar varEnv name =
   { varEnv with Globals = Map.add name (Map.count varEnv.Globals) varEnv.Globals }
 
