@@ -317,8 +317,8 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   List.iter writeBytes wasmHeader
   //#endregion
 
-  // if there are no types, this module does nothing - return early.
-  if Map.count funEnv.Types = 0 then () else
+  // if there are no types or exports, this module does nothing - return early.
+  if Map.count funEnv.Types = 0 && Map.count exports = 0 then () else
 
   //#region Type section [1]
   let typeSectMapper ((retTyp, argTyps), i) =
