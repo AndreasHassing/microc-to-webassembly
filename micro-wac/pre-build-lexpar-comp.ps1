@@ -30,8 +30,7 @@ function CompileLexerAndParser {
 }
 
 function main {
-    $alreadyCompiled = AlreadyCompiledLexerAndParser
-    if (-not $alreadyCompiled) {
+    if (-not (AlreadyCompiledLexerAndParser)) {
         CompileLexerAndParser
         GenerateLexerAndParserHash
     }
