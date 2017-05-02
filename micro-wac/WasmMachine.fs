@@ -25,7 +25,7 @@ type BlockType =
 
 let printFunctionIndex = 0
 
-let printLnFunctionIndex = 1
+let printCFunctionIndex = 1
 
 let getValueTypeCode = function
   | I32     -> 0x7fuy
