@@ -22,6 +22,8 @@ let keyword s =
   | "if"      -> IF
   | "int"     -> INT
   | "null"    -> NULL
+  | "print"   -> PRINT
+  | "println" -> PRINTLN
   | "return"  -> RETURN
   | "export"  -> EXPORT
   | "import"  -> IMPORT

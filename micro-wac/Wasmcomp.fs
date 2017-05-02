@@ -141,6 +141,8 @@ let rec cExpr varEnv funEnv depth = function
       cExpr varEnv funEnv depth exp
     @ (match op with
        | "!" -> [I32_EQZ]
+       | "printi" -> [CALL printFunctionIndex]
+       | "printc" -> [CALL printLnFunctionIndex]
        | _   -> failwith (sprintf "unknown prim1 operator: %s" op))
   | Prim2 (op, exp1, exp2)  ->
       cExpr varEnv funEnv depth exp1
