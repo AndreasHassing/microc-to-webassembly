@@ -72,6 +72,9 @@
     <Compile Include="Wasmcomp.fsi" />
     <Compile Include="Wasmcomp.fs" />
     <Compile Include="Program.fs" />
+    <None Include="WasmBootstrapTemplate.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core">

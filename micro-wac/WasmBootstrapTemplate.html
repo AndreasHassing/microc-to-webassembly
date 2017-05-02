@@ -1,0 +1,34 @@
+﻿<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+		<title>WASM Bootstrap</title>
+		<script>
+			let jsExports = {
+				// The functions `printi` and `printc` needs to be exported
+				// in order for MicroC programs to execute correctly. If you wish
+				// to add more functionality, put your functions after `printc`.
+				printi: i => console.log(i),
+				printc: c => console.log(String.fromCharCode(c))
+			};
+
+			async function fetchAndInstantiate() {
+				let wasm = await fetch("${{WASM_FILENAME}}");
+				let bytes = await wasm.arrayBuffer();
+				let module = await WebAssembly.compile(bytes);
+				let instance = await WebAssembly.instantiate(module, {
+					imports: jsExports
+				});
+				return instance;
+			}
+
+			let WasmModule = { IsLoaded: false }
+			fetchAndInstantiate().then(module => WasmModule = module);
+		</script>
+	</head>
+
+	<body>
+	</body>
+
+</html>

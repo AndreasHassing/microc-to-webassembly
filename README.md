@@ -9,6 +9,14 @@ See [AboutWebAssembly.md](./About%20WebAssembly.md) for more information regardi
   * The script is not baked into the VS build process because of the execution policies of PowerShell scripts.
 * Run `xbuild -target:micro-wac`, or simply build the project from within VS. The executable compiler can be found in `./micro-wac/bin/Debug/microwac.exe`.
 
+## Compiling a MicroC program to WebAssembly with MicroWac
+Compile the MicroC program with the `microc.exe` executable. Run the compiler without any arguments to get information on how to use it.
+
+WebAssembly modules cannot be loaded through the `file://` protocol, therefore you need to supply a locally hosted web server in order to see it run.
+I suggest using `npm install -g http-server` and using the `http-server` command in the directory of your HTML/WASM files.
+If you dislike Node (or JS), or like Python better, you can also run a web server in the current directory with Python using the following command:
+`python -m http.server` (Python3) or `python -m SimpleHTTPServer` (Python2).
+
 ## Repository Structure
 * **[micro-wac](./micro-wac)**: contains the source code for the *Micro* C to *W*eb*A*ssembly *C*ompiler.
 * **[wasm-playground](./wasm-playground)**: contains hand-crafted `.wast` samples, their compiled binaries and a tiny framework to run them in.

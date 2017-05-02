@@ -38,6 +38,7 @@ open Absyn
 open System
 open System.IO
 open System.Text
+open System.Text.RegularExpressions
 open WasmMachine
 
 //#region Environment types
@@ -437,4 +438,20 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
 
   //#endregion
 
-let compileToFile fileName program = (cProgram >> compileWasmBinary fileName) program
+let generateHtml (wasmFileName : string) =
+  // not using app.config, as it still won't give us the path of the
+  // actual application. not using an installer which would allow
+  // keys containing static locations of template file.
+  let microWacPath = Reflection.Assembly.GetEntryAssembly().Location
+  let wasmBootstrapTemplatePath = Path.Combine((Path.GetDirectoryName microWacPath), "WasmBootstrapTemplate.html")
+  let wasmTemplate =
+    seq {
+      for line in File.ReadLines(wasmBootstrapTemplatePath) ->
+        Regex.Replace(line, "\${{WASM_FILENAME}}", wasmFileName)
+    }
+  let htmlFileName = (Path.GetFileNameWithoutExtension wasmFileName) + ".html"
+  File.WriteAllLines(htmlFileName, wasmTemplate)
+
+let compileToFile fileName program withHtml =
+  (cProgram >> compileWasmBinary fileName) program
+  if withHtml then generateHtml fileName
