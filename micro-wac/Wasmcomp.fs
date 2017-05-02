@@ -98,7 +98,7 @@ let accessVar varEnv depth = function
   | AccIndex (acc, exp) -> failwith "Access indexes not yet implemented"
 //#endregion
 
-//#region Function helper functions
+//#region Function declaration helper functions
 let getFunSig f =
   let getArgTypes types (typ, _) = typ :: types
   match f with
@@ -251,6 +251,11 @@ let cProgram (Prog topdecs) =
   let emptyFunEnv = { Ids = Map.empty; Types = Map.empty; Decs = Map.empty; }
   let emptyVarEnv = { Locals = Map.empty; Globals = Map.empty; }
 
+  // add printi and printc import functions, required for spec compliance with MicroC
+  let topdecs = Funsig(true, None, "printi", [(TypI, "i")])
+                :: Funsig(true, None, "printc", [(TypC, "c")])
+                :: topdecs
+
   let typeFolder funEnv = function
     | Funsig _
     | Fundec _ as f -> updTypes f funEnv
@@ -260,11 +265,9 @@ let cProgram (Prog topdecs) =
   let importsFolder (funEnv, imports) = function
     | Funsig(imported, _, name, _) as f when imported ->
       let funId = Map.count funEnv.Ids
-      (
-        { funEnv with Ids = Map.add name funId funEnv.Ids
-                      Decs = Map.add funId f funEnv.Decs },
-        Map.add name (Map.find (getFunSig f) funEnv.Types) imports
-      )
+      ({ funEnv with Ids = Map.add name funId funEnv.Ids
+                     Decs = Map.add funId f funEnv.Decs },
+       Map.add name (Map.find (getFunSig f) funEnv.Types) imports)
     | _ -> funEnv, imports
   let funEnv, imports = List.fold importsFolder (funEnv, Map.empty) topdecs
 
@@ -351,12 +354,11 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     i2bNoPad (importNameAsBytes.Length) @ importNameAsBytes
     @ i2bNoPad (fieldNameAsBytes.Length) @ fieldNameAsBytes
     @ importKind :: importFunctionSignatureIndex
-  if (Map.count imports) > 0 then
-    let importSectionData = i2bNoPad (Map.count imports)
-                            @ (imports |> mapToSeqSortedBy snd
-                                       |> Seq.map importSectMapper
-                                       |> ofSeqConcat)
-    writeSection IMPORT importSectionData
+  let importSectionData = i2bNoPad (Map.count imports)
+                          @ (imports |> mapToSeqSortedBy snd
+                                      |> Seq.map importSectMapper
+                                      |> ofSeqConcat)
+  writeSection IMPORT importSectionData
   //#endregion
 
   //#region Function section [3]
