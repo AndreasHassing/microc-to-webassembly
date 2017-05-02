@@ -95,15 +95,4 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\FsLexYacc.7.0.5\build\FsLexYacc.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\FsLexYacc.7.0.5\build\FsLexYacc.targets'))" />
   </Target>
-  <PropertyGroup>
-    <PreBuildEvent>fsyacc --module CPar ..\..\CPar.fsy -o ..\..\CPar.fs
-fslex --unicode ..\..\CLex.fsl -o ..\..\CLex.fs</PreBuildEvent>
-  </PropertyGroup>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>
