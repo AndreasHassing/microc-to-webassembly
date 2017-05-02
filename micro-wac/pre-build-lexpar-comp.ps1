@@ -24,9 +24,12 @@ function GenerateLexerAndParserHash {
 }
 
 function CompileLexerAndParser {
-    # remember to change the version number if fslexyacc is updated in this project
-    ../packages/FsLexYacc.7.0.5/build/fsyacc.exe --module CPar CPar.fsy -o CPar.fs
-    ../packages/FsLexYacc.7.0.5/build/fslex.exe --unicode CLex.fsl -o CLex.fs
+    $fslexyaccPath = "../packages/" + (Get-ChildItem ../packages/ "FsLexYacc.*" -Directory | Where-Object {$_.Name -match "FsLexYacc.\d"}).Name + "/build/"
+    $fsyaccCmd = $fslexyaccPath + "fsyacc.exe --module CPar CPar.fsy -o CPar.fs"
+    $fslexCmd = $fslexyaccPath + "fslex.exe --unicode CLex.fsl -o CLex.fs"
+
+    Invoke-Expression $fsyaccCmd
+    Invoke-Expression $fslexCmd
 }
 
 function main {
