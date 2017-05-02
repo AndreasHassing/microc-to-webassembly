@@ -96,10 +96,10 @@ type Section =
 
 //#region Functions
 /// Get the function index of the print function.
-val printFunctionIndex : Index
+val printIntFunctionIndex : Index
 
-/// Get the function index of the println function.
-val printCFunctionIndex : Index
+/// Get the function index of the printc function.
+val printCharFunctionIndex : Index
 
 /// Get the binary type code of a ValueType as a byte.
 val getValueTypeCode: v:ValueType -> byte

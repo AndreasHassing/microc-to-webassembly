@@ -23,9 +23,9 @@ type BlockType =
   | BReturn of ValueType                (* single result *)
   | BVoid                               (* 0 results     *)
 
-let printFunctionIndex = 0
+let printIntFunctionIndex = 0
 
-let printCFunctionIndex = 1
+let printCharFunctionIndex = 1
 
 let getValueTypeCode = function
   | I32     -> 0x7fuy
