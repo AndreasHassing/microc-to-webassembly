@@ -232,9 +232,7 @@ and cStmt varEnv funEnv depth = function
     let varEnvF, stmFCode = cStmt varEnvT funEnv (depth+1) stmF
 
     let stmtContainsReturn =
-      stmTCode |> List.exists (fun instr -> match instr with
-                                            | RETURN -> true
-                                            | _      -> false)
+      stmTCode |> List.exists (fun instr -> instr = RETURN)
     let ifRetTyp = if stmtContainsReturn then BReturn I32 else BVoid
     varEnvF, cExpr varEnv funEnv depth bExp
              @ IF (ifRetTyp) :: stmTCode
