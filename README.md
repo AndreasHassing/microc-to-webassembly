@@ -7,7 +7,7 @@ See [AboutWebAssembly.md](./About%20WebAssembly.md) for more information regardi
 * Run `nuget restore` with the root of this repository as your working directory (or current directory). I personally recommend PowerShell.
 * Run `./micro-wac/pre-build-lexpar-comp.ps1` in order to compile the lexer and parser (this step is also required if you're using VS2015 or later). The pre-build script will not do anything if you already have the latest compiled versions.
   * The script is not baked into the VS build process because of the execution policies of PowerShell scripts.
-* Run `xbuild -target:micro-wac`, or simply build the project from within VS. The executable compiler can be found in `./micro-wac/bin/Debug/microwac.exe`.
+* Run `xbuild /target:micro-wac`, or simply build the project from within VS. The executable compiler can be found in `./micro-wac/bin/Debug/microwac.exe`.
 
 ## Compiling a MicroC program to WebAssembly with MicroWac
 Compile the MicroC program with the `microc.exe` executable. Run the compiler without any arguments to get information on how to use it.
