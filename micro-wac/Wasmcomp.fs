@@ -110,7 +110,7 @@ let updTypes func funEnv =
   let funsig = getFunSig func
   if Map.containsKey funsig (funEnv.Types)
   then funEnv
-  else {funEnv with Types = Map.add funsig (Map.count funEnv.Types) funEnv.Types }
+  else { funEnv with Types = Map.add funsig (Map.count funEnv.Types) funEnv.Types }
 
 let getFunId name funEnv =
   Map.find name funEnv.Ids
@@ -196,11 +196,11 @@ let rec cExpr varEnv funEnv depth = function
     if argExprs.Length <> funArgCount
     then failwith (sprintf "function %s expects %d args, got %d. Args received: %A" name funArgCount argExprs.Length argExprs)
 
-    let cArgs = List.concat (List.map (fun e -> cExpr varEnv funEnv depth e) argExprs)
+    let cArgs = List.collect (fun e -> cExpr varEnv funEnv depth e) argExprs
     cArgs @ [CALL funId]
 and cStmtOrDec varEnv funEnv depth = function
   | Dec (typ, name)      -> allocateLocVar varEnv name depth false, []
-  | Stmt stm             -> cStmt varEnv funEnv depth stm
+  | Stmt stmt            -> cStmt varEnv funEnv depth stmt
 and cBlock varEnv funEnv depth = function
   | Block stmtOrDecs ->
       // discard all variables already declared at- and below the current depth
@@ -217,13 +217,13 @@ and cBlock varEnv funEnv depth = function
              Map.add key { Map.find key locals with InScope = false } locals
            ) locals
 
-      let varEnv, stmts =
-        List.fold (fun (varEnv, stmts) elem ->
-                    let varEnv, stmt = (cStmtOrDec varEnv funEnv depth elem)
-                    varEnv, (List.rev stmt) @ stmts
+      let varEnv, cStmts =
+        List.fold (fun (varEnv, cStmts) stmtOrDec ->
+                    let varEnv, cStmt = (cStmtOrDec varEnv funEnv depth stmtOrDec)
+                    varEnv, cStmts @ cStmt
                   ) (varEnv, []) stmtOrDecs
       let varEnv = { varEnv with Locals = discardScopes depth varEnv.Locals }
-      varEnv, BLOCK (BVoid) :: (List.rev stmts) @ [END]
+      varEnv, BLOCK (BVoid) :: cStmts @ [END]
   | anyOtherStmt ->
     failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyOtherStmt)
 and cStmt varEnv funEnv depth = function
@@ -432,7 +432,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
                         else decCountBytes @ decCountBytes @ [getValueTypeCode I32]
     let codeBytes = localDecBytes @ code2bytes instrs
     i2leb codeBytes.Length @ codeBytes
-  if (List.length varEnvAndFunCode) > 0 then
+  if not (List.isEmpty varEnvAndFunCode) then
     let codeSectionData = i2leb (funCode.Length)
                           @ List.concat (List.map codeSectMapper varEnvAndFunCode)
     writeSection CODE codeSectionData
