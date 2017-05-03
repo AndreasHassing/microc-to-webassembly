@@ -4,39 +4,41 @@ $parserFile = "CPar.fsy"
 $lexerHashFile = ".lexer.compiled.hash"
 $parserHashFile = ".parser.compiled.hash"
 
+function GetFileHash($fileName) {
+	return git hash-object $fileName
+}
+
 function AlreadyCompiledLexerAndParser {
-    if (-not (Test-Path $lexerHashFile) -or -not (Test-Path $parserHashFile)) {
-        return $false
-    }
+	if (-not (Test-Path $lexerHashFile) -or -not (Test-Path $parserHashFile)) {
+		return $false
+	}
 
-    $lexerHash = (Get-FileHash $lexerFile -Algorithm MD5).Hash
-    $parserHash = (Get-FileHash $parserFile -Algorithm MD5).Hash
+	$lexerHash = GetFileHash $lexerFile
+	$parserHash = GetFileHash $parserFile
 
-    $existingLexerHash = Get-Content $lexerHashFile
-    $existingParserHash = Get-Content $parserHashFile
+	$existingLexerHash = Get-Content $lexerHashFile
+	$existingParserHash = Get-Content $parserHashFile
 
-    return $lexerHash -eq $existingLexerHash -and $parserHash -eq $existingParserHash
+	return $lexerHash -eq $existingLexerHash -and $parserHash -eq $existingParserHash
 }
 
 function GenerateLexerAndParserHash {
-    Set-Content $lexerHashFile (Get-FileHash $lexerFile -Algorithm MD5).Hash
-    Set-Content $parserHashFile (Get-FileHash $parserFile -Algorithm MD5).Hash
+	Set-Content $lexerHashFile -NoNewline (GetFileHash $lexerFile)
+	Set-Content $parserHashFile -NoNewline (GetFileHash $parserFile)
 }
 
 function CompileLexerAndParser {
-    $fslexyaccPath = "../packages/" + (Get-ChildItem ../packages/ "FsLexYacc.*" -Directory | Where-Object {$_.Name -match "FsLexYacc.\d"}).Name + "/build/"
-    $fsyaccCmd = $fslexyaccPath + "fsyacc.exe --module CPar CPar.fsy -o CPar.fs"
-    $fslexCmd = $fslexyaccPath + "fslex.exe --unicode CLex.fsl -o CLex.fs"
+	$fslexyaccPath = "../packages/" + (Get-ChildItem ../packages/ "FsLexYacc.*" -Directory | Where-Object {$_.Name -match "FsLexYacc.\d"}).Name + "/build/"
+	$fsyaccCmd = $fslexyaccPath + "fsyacc.exe --module CPar CPar.fsy -o CPar.fs"
+	$fslexCmd = $fslexyaccPath + "fslex.exe --unicode CLex.fsl -o CLex.fs"
 
-    Invoke-Expression $fsyaccCmd
-    Invoke-Expression $fslexCmd
+	Invoke-Expression $fsyaccCmd
+	Invoke-Expression $fslexCmd
 }
 
-function main {
-    if (-not (AlreadyCompiledLexerAndParser)) {
-        CompileLexerAndParser
-        GenerateLexerAndParserHash
-    }
+if (-not (AlreadyCompiledLexerAndParser)) {
+	CompileLexerAndParser
+	GenerateLexerAndParserHash
+} else {
+	Write-Output "Parser and lexer is already compiled"
 }
-
-main
