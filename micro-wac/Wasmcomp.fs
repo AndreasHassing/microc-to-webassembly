@@ -227,11 +227,17 @@ and cBlock varEnv funEnv depth = function
   | anyOtherStmt ->
     failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyOtherStmt)
 and cStmt varEnv funEnv depth = function
-  | If (exp, stmT, stmF) ->
+  | If (bExp, stmT, stmF) ->
     let varEnvT, stmTCode = cStmt varEnv funEnv (depth+1) stmT
     let varEnvF, stmFCode = cStmt varEnvT funEnv (depth+1) stmF
-    varEnvF, cExpr varEnv funEnv depth exp
-             @ IF (BVoid) :: stmTCode
+
+    let stmtContainsReturn =
+      stmTCode |> List.exists (fun instr -> match instr with
+                                            | RETURN -> true
+                                            | _      -> false)
+    let ifRetTyp = if stmtContainsReturn then BReturn I32 else BVoid
+    varEnvF, cExpr varEnv funEnv depth bExp
+             @ IF (ifRetTyp) :: stmTCode
              @ ELSE :: stmFCode
              @ [END]
   | While (exp, stm)     ->
