@@ -23,9 +23,9 @@ type BlockType =
   | BReturn of ValueType                (* single result *)
   | BVoid                               (* 0 results     *)
 
-let printIntFunctionIndex = 0
+let printIntFunctionIndex : Index = 0
 
-let printCharFunctionIndex = 1
+let printCharFunctionIndex : Index = 1
 
 let getValueTypeCode = function
   | I32     -> 0x7fuy
@@ -189,21 +189,28 @@ let getSectionCode = function
 open System
 open System.Linq
 
-let ui2b (n : uint32) discardPadding =
-  let rec _discardPadding = function
-    | [0uy]     -> [0uy]
-    | 0uy :: xs -> _discardPadding xs
-    | xs        -> xs
-  let bytes = List.ofSeq (BitConverter.GetBytes(n).Reverse())
-  if discardPadding
-  then _discardPadding bytes
-  else bytes
-
 let i2b (n : int) =
-  ui2b (uint32 n) false
+  List.ofSeq (BitConverter.GetBytes(n).Reverse())
 
-let i2bNoPad (n : int) =
-  ui2b (uint32 n) true
+let i2leb value =
+  // integer to LEB128 varint as specced in http://dwarfstd.org/doc/Dwarf3.pdf
+  // implementation from: (MIT licensed project)
+  // https://github.com/yageek/LEB128/blob/d05713742dd56bc2d1eaed44956f20f6755fa4e9/Sources/LEB128.swift#L79
+  // translated to FP
+  let rec inner bytes value more count =
+    if not more then List.rev bytes else
+
+    let b = byte (value &&& 0x7F)
+    let value = value >>> 7
+
+    let stop = (value = 0) && ((b >>> 6) = 0uy) || (value = -1 && (b >>> 6) = 1uy)
+    let more = not stop
+    let b = if not stop then b ||| 0x80uy else b
+
+    let bytes = b :: bytes
+    let count = count + 1
+    inner bytes value more count
+  inner [] value true 0
 
 let emitbytes instr bytes =
   let opCode = getOpCode instr
@@ -215,7 +222,7 @@ let emitbytes instr bytes =
   | SET_LOCAL i
   | TEE_LOCAL i
   | GET_GLOBAL i
-  | SET_GLOBAL i               -> opCode :: i2bNoPad i @ bytes
-  | I32_CONST n                -> opCode :: i2bNoPad n @ bytes
+  | SET_GLOBAL i               -> opCode :: i2leb i @ bytes
+  | I32_CONST n                -> opCode :: i2leb n @ bytes
   // IMMEDIATE-FREE OPERATORS
   | _                          -> opCode :: bytes

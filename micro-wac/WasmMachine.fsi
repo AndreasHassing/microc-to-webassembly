@@ -95,7 +95,7 @@ type Section =
 //#endregion
 
 //#region Functions
-/// Get the function index of the print function.
+/// Get the function index of the printi function.
 val printIntFunctionIndex : Index
 
 /// Get the function index of the printc function.
@@ -116,8 +116,8 @@ val getSectionCode: Section -> byte
 /// Convert a 32 bit integer to a byte list.
 val i2b: int -> byte list
 
-/// Convert a 32 bit integer to a byte list, and remove prefixed (padded) zeroes.
-val i2bNoPad: int -> byte list
+/// Convert a 32 bit integer to a signed LEB128 encoded integer as a byte list.
+val i2leb: int -> byte list
 
 /// Conversion folder, turns an instruction into a byte lists
 /// and prepends the result onto the 2nd parameter byte list.

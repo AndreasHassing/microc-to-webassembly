@@ -252,8 +252,10 @@ let cProgram (Prog topdecs) =
   let emptyVarEnv = { Locals = Map.empty; Globals = Map.empty; }
 
   // add printi and printc import functions, required for spec compliance with MicroC
+  // the order of insertion is important, due to printIntFunctionIndex and
+  // printCharFunctionIndex.
   let topdecs = Funsig(true, None, "printi", [(TypI, "i")])
-                :: Funsig(true, None, "printc", [(TypC, "c")])
+                :: Funsig(true, None, "printc", [(TypI, "c")])
                 :: topdecs
 
   let typeFolder funEnv = function
@@ -313,12 +315,12 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
 
   // stream writer helper functions
   let writeBytes bytes = List.iter (fun (b : byte) -> wasmFile.Write(b)) bytes
-  let writeVarInt n = i2bNoPad n |> writeBytes
+  let writeVarInt n = i2leb n |> writeBytes
   let strToBytes (s : string) = Encoding.ASCII.GetBytes(s) |> Array.toList
   let ofSeqConcat = List.ofSeq >> List.concat
   let mapToSeqSortedBy f map = map |> Map.toSeq |> Seq.sortBy f
   let gSection sectionType data =
-    getSectionCode sectionType :: i2bNoPad (Seq.length data) @ data
+    getSectionCode sectionType :: i2leb (Seq.length data) @ data
   let writeSection sectionType = (gSection sectionType) >> writeBytes
 
   //#region WASM Header [0]
@@ -329,13 +331,13 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   //#region Type section [1]
   let typeSectMapper ((retTyp, argTyps), i) =
     getValueTypeCode Func                               // type code
-    :: i2bNoPad (List.length argTyps)                   // num of args
+    :: i2leb (List.length argTyps)                   // num of args
     @  List.map (fun _ -> getValueTypeCode I32) argTyps // arg types
     @  match retTyp with                                // number of return types (can only be 1, as of WASM v1.0)
        | Some _ -> [1uy; getValueTypeCode I32]          // the return type
        | None   -> [0uy]                                // ... or nothing returned
   if (Map.count funEnv.Types) > 0 then
-    let typeSectionData = i2bNoPad (Map.count funEnv.Types)
+    let typeSectionData = i2leb (Map.count funEnv.Types)
                         @ (funEnv.Types |> mapToSeqSortedBy snd
                                         |> Seq.map typeSectMapper
                                         |> ofSeqConcat)
@@ -350,11 +352,11 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     //       requires updating the import compilation fold function
     //       and extending of the abstract syntax, the lexer and parser.
     let importKind = 0x00uy // 0x00 = function extern type
-    let importFunctionSignatureIndex = i2bNoPad id
-    i2bNoPad (importNameAsBytes.Length) @ importNameAsBytes
-    @ i2bNoPad (fieldNameAsBytes.Length) @ fieldNameAsBytes
+    let importFunctionSignatureIndex = i2leb id
+    i2leb (importNameAsBytes.Length) @ importNameAsBytes
+    @ i2leb (fieldNameAsBytes.Length) @ fieldNameAsBytes
     @ importKind :: importFunctionSignatureIndex
-  let importSectionData = i2bNoPad (Map.count imports)
+  let importSectionData = i2leb (Map.count imports)
                           @ (imports |> mapToSeqSortedBy snd
                                       |> Seq.map importSectMapper
                                       |> ofSeqConcat)
@@ -363,13 +365,13 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
 
   //#region Function section [3]
   let funcSectMapper funDec =
-    i2bNoPad (Map.find (getFunSig funDec) funEnv.Types)
+    i2leb (Map.find (getFunSig funDec) funEnv.Types)
   if (Map.count funEnv.Decs) > 0 then
     let funDecs = funEnv.Decs |> mapToSeqSortedBy fst
                               |> Seq.choose (fun (_, dec) -> match dec with
                                                              | Fundec _ -> Some dec
                                                              | _        -> None)
-    let funSectionData = i2bNoPad (Seq.length funDecs)
+    let funSectionData = i2leb (Seq.length funDecs)
                          @ (funDecs |> Seq.map funcSectMapper
                                     |> ofSeqConcat)
     writeSection FUNCTION funSectionData
@@ -387,7 +389,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     :: List.concat (List.map (fun i -> emitbytes i []) [I32_CONST 0; END])
   let globals = (List.head varEnvs).Globals
   if (Map.count globals) > 0 then
-    let globalSectionData = i2bNoPad (Map.count globals)
+    let globalSectionData = i2leb (Map.count globals)
                           @ (globals |> mapToSeqSortedBy snd
                                      |> Seq.map globalSectMapper
                                      |> ofSeqConcat)
@@ -398,10 +400,10 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   let exportSectMapper (name, id) =
     let nameAsBytes = strToBytes name
     let exportKind = 0x00uy // 0x00 = function extern type
-    i2bNoPad (nameAsBytes.Length) @ nameAsBytes
-    @ exportKind :: i2bNoPad id
+    i2leb (nameAsBytes.Length) @ nameAsBytes
+    @ exportKind :: i2leb id
   if (Map.count exports) > 0 then
-    let exportSectionData = i2bNoPad (Map.count exports)
+    let exportSectionData = i2leb (Map.count exports)
                           @ (exports |> mapToSeqSortedBy snd
                                      |> Seq.map exportSectMapper
                                      |> ofSeqConcat)
@@ -413,7 +415,7 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   match Map.tryFind "start" funEnv.Ids with
   | Some id -> let startFunSignature = getFunSig (Map.find id funEnv.Decs)
                if startFunSignature = expectedStartSignature
-               then writeSection START (i2bNoPad id)
+               then writeSection START (i2leb id)
                else failwith "start function has arguments or a return value"
   | None    -> ()
   //#endregion
@@ -422,16 +424,16 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   let varEnvAndFunCode = List.zip varEnvs funCode
   let codeSectMapper (varEnv, instrs) =
     let decCount = Seq.sumBy (fun lv -> if lv.FunArg then 0 else 1) (mapValues varEnv.Locals)
-    let decCountBytes = i2bNoPad decCount
+    let decCountBytes = i2leb decCount
     let localDecBytes = if decCount = 0
                         then decCountBytes
                         // between MicroC and Wasm there is only 1 data type available: i32
                         // so # of params is also # of type i32 params
                         else decCountBytes @ decCountBytes @ [getValueTypeCode I32]
     let codeBytes = localDecBytes @ code2bytes instrs
-    i2bNoPad codeBytes.Length @ codeBytes
+    i2leb codeBytes.Length @ codeBytes
   if (List.length varEnvAndFunCode) > 0 then
-    let codeSectionData = i2bNoPad (funCode.Length)
+    let codeSectionData = i2leb (funCode.Length)
                           @ List.concat (List.map codeSectMapper varEnvAndFunCode)
     writeSection CODE codeSectionData
   //#endregion
