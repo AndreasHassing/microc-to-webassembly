@@ -11,15 +11,12 @@
 \usepackage{lastpage}
 \usepackage{verbatim}
 \usepackage{url}
+\usepackage{cite}
 
 % Code highlighting
 \usepackage{minted}
 % Highlight theme
 \usemintedstyle{trac}
-
-% Commands
-%\newcommand{\execvp}{\texttt{command}\xspace}
-
 
 \pagestyle{fancy}
 \fancyhf{}
@@ -58,9 +55,15 @@
 
 
 \section{Introduction}
+The purpose of this project is to build a compiler, also called a translator, from MicroC to WebAssembly, using FsLexYacc\footnote{http://fsprojects.github.io/FsLexYacc/} and F\#\footnote{http://fsharp.org/}.
 
+MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.
+
+%TODO: consider removing this bit about BCD.
+Knowledge regarding lexers and parsers in general have been obtained through the book: Basics of Compiler Design~\cite{BCD}, by Torben Mogensen.
 
 \subsection{WebAssembly}
+Semantics~\cite{website:wasm-semantics}.
 
 \subsection{Compilers}
 
@@ -72,11 +75,18 @@
 
 \section{Testing and Validation}
 
+\section{Peripheral Tooling}
+
 \section{Extensions}
 
 \section{Conclusion}
 
-\section{Bibliography}
+\section{References}
+\begingroup
+\renewcommand{\section}[2]{}%
+\bibliographystyle{plain}
+\bibliography{Bibliography}{}
+\endgroup
 
 \section{Appendix}
 
