@@ -74,7 +74,7 @@ function BibTeX() {
 
 
 \section{Introduction}
-The purpose of this project is to build a compiler, also called a translator, from MicroC to WebAssembly, using FsLexYacc\footnote{http://fsprojects.github.io/FsLexYacc/} and F\#\footnote{http://fsharp.org/}.
+The purpose of this project is to build a compiler, also called a translator, from MicroC to WebAssembly, using FsLexYacc\footnote{\label{footnote:fslexyacc-url}http://fsprojects.github.io/FsLexYacc/} and F\#\footnote{http://fsharp.org/}.
 
 MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.
 
@@ -85,6 +85,33 @@ Knowledge regarding lexers and parsers in general have been obtained through the
 Semantics~\cite{website:wasm-semantics}.
 
 \subsection{Compilers}
+
+\section{Problem Definition}
+WebAssembly (WASM) is a new up-and-coming binary code format for the user-facing web, designed to work alongside JavaScript as a more portable, size- and load-time-efficient, ahead-of-time-compiled alternative. 
+
+The binary WASM format is not bound to be emitted by JavaScript (asm.js) only, potentially bringing your favourite language to the browser front-end. If a language can compile to a intermediate representation supported by WASM (LLVM IR, for instance), it can be compiled to the binary WASM format. 
+
+The purpose of this project is to shed some light on the unfinished WebAssembly specification. To assist in meeting this goal, a compiler will be designed, that compiles from a simple programming language, MicroC, to a WASM format that can be run in a WASM-enabled browser today (currently requiring Firefox Nightly or Chrome Canary with WASM flags set to enabled).
+
+\subsection{Method}
+Planned activities and sources of information.
+\begin{itemize}
+	\item Translation of MicroC to the binary WebAssembly format, using FsLexYacc\footnoteref{footnote:fslexyacc-url}, as used in the Programs as Data course (fall 2016).
+	\item Course books from Programs as Data (fall 2016) will be used as knowledge base for MicroC to WebAssembly translation:
+		\begin{itemize}
+			\item Peter Sestoft: Programming Language Concepts. Springer 2012.
+			\item Torben Mogensen: Basics of Compiler Design. DIKU 2010. Chapters 2 and 3.
+		\end{itemize}
+	\item Knowledge of WebAssembly will be gained through the official website (http://webassembly.org/) and links branching out from it.
+	\item Creation of prototype: web interface that lets users type MicroC in a window, and see it generate WebAssembly in some human-readable format, either s-expression or linear bytecode. The prototype will also give users the ability to run their code as WebAssembly, given that the browser in use supports it.
+	\item Reflection over, either the security behind WebAssembly or the portability of it between browsers and platforms.
+\end{itemize}
+
+\noindent If time allows:
+\begin{itemize}
+	\item Extensions to the MicroC language will be implemented.
+	\item Simple optimizations to the generated WebAssembly code.
+\end{itemize}
 
 \section{Problem Analysis}
 
