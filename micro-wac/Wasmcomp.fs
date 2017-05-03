@@ -243,7 +243,7 @@ and cStmt varEnv funEnv depth = function
                   @  BR 0uy
                 :: [END;
                 END]
-  | Expr exp
+  | Expr exp             -> varEnv, cExpr varEnv funEnv depth exp
   | Return (Some exp)    -> varEnv, cExpr varEnv funEnv depth exp @ [RETURN]
   | Return None          -> varEnv, [RETURN]
   | Block _ as b         -> cBlock varEnv funEnv (depth+1) b
