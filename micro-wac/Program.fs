@@ -40,7 +40,10 @@ let main argv =
 
   let programAsAST = Parse.fromFile opts.cfile
   let wasmFilename = renameExtension opts.cfile "wasm"
-  Wasmcomp.compileToFile wasmFilename programAsAST opts.withHtml
+  try
+    Wasmcomp.compileToFile wasmFilename programAsAST opts.withHtml
 
-  if opts.verbose then printfn "Finished compiling to %s" wasmFilename
-  0 // return an integer exit code; 0 means A-OK
+    if opts.verbose then printfn "Finished compiling to %s" wasmFilename
+    0 // return an integer exit code; 0 means A-OK
+  with
+    | ex -> printf "Failed to compile: %s" (ex.ToString()); 1
