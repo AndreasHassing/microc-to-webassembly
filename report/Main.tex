@@ -83,16 +83,20 @@ The purpose of this project is to build a compiler, also called a translator, fr
 
 MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.
 
-
-\subsection{WebAssembly}
-Semantics~\cite{website:wasm-semantics}.
-
 \subsection{Compilers}
-What is a compiler? According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes another program, written in some higher-level language, C\# for instance, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#.
+Before the compiler design is even considered, an important, and perhaps trivial, question must be asked and answered: "What is a compiler?".
 
-Languages running on the .NET CLR, F\# and C\# to name two, compiles to bytecode known as Common Intermediate Language (CIL), which is then compiled to the specific instruction set on the machine running the program just-in-time (JIT), whereas languages such as C and Rust are compiled ahead-of-time directly to the instruction set of the compiling machine\footnote{Unless the compiler is configured to compile to another OS and/or processor architecture.}.
+According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes the source code of another program as input, usually some higher-level language such as C\#, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#, or binary machine code instructions - in the case of C. There are more low-level representations out in the wild, but these two will be the ones referenced in this report.
 
-For this report, only AOT compilation will be discussed.
+Many programs are written in high-level languages that run within an assisting runtime environment and compiles to a variant of bytecode, with an instruction set specified in the virtual machine of the runtime. When the runtime is started and the program bytecode is passed to it, it performs a just-in-time (JIT) compilation to native machine code using the instruction set of the machine's processor. The .NET CLR and Java's JRE are two such runtimes that both support several higher-level languages, such as C\#, F\#, Java and Scala. Runtime environments often come equipped with integrated memory management in the form of a garbage collector.
+
+Programs written in comparatively lower-level languages, such as C and C++, are usually compiled ahead-of-time (AOT) to native machine code using the instruction set of the compiling machine. One can often configure the compiler to target other operating systems and processor architectures than that of the compiling system. In these lower-level languages, the programmer is often challenged with manually managing dynamic memory.
+
+Note, that nothing stops us from implementing a runtime environment that supports a high-level language, such as C, which can then run code written in that language as a JIT compiled application. The task may be non-trivial.
+
+%TODO: Consider if this subsubsection has merit.
+%\subsubsection{So, which is better, AOT or JIT?}
+
 
 \section{Problem Definition}
 WebAssembly (WASM) is a new up-and-coming binary code format for the user-facing web, designed to work alongside JavaScript as a more portable, size- and load-time-efficient, ahead-of-time-compiled alternative. 
