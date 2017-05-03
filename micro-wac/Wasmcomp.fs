@@ -142,8 +142,8 @@ let rec cExpr varEnv funEnv depth = function
       cExpr varEnv funEnv depth exp
     @ (match op with
        | "!" -> [I32_EQZ]
-       | "printi" -> [CALL printIntFunctionIndex]
-       | "printc" -> [CALL printCharFunctionIndex]
+       | "printi"
+       | "printc" -> [CALL (getFunId op funEnv)]
        | _   -> failwith (sprintf "unknown prim1 operator: %s" op))
   | Prim2 (op, exp1, exp2)  ->
       cExpr varEnv funEnv depth exp1
@@ -256,7 +256,7 @@ let cProgram (Prog topdecs) =
   // the order of insertion is important, due to printIntFunctionIndex and
   // printCharFunctionIndex.
   let topdecs = Funsig(true, None, "printi", [(TypI, "i")])
-                :: Funsig(true, None, "printc", [(TypI, "c")])
+                :: Funsig(true, None, "printc", [(TypC, "c")])
                 :: topdecs
 
   let typeFolder funEnv = function
