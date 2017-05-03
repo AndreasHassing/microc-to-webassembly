@@ -11,7 +11,26 @@
 \usepackage{lastpage}
 \usepackage{verbatim}
 \usepackage{url}
+
+%%% BibTeX %%%
 \usepackage{cite}
+% JS function to get BibTeX entry from WebAssembly website
+\begin{comment}
+function BibTeX() {
+	let subject = document.title.replace(/ - WebAssembly/, '').replace(' ', '-').toLowerCase();
+    return `@misc{website:wasm-${subject}
+	author = "The WebAssembly working group",
+	title = {{${document.title}}},
+	url = "${document.URL}",
+	note = {Online; accessed 3 May 2017},
+}`;
+}
+\end{comment}
+
+% source: https://tex.stackexchange.com/a/35044
+\makeatletter
+\newcommand\footnoteref[1]{\protected@xdef\@thefnmark{\ref{#1}}\@footnotemark}
+\makeatother
 
 % Code highlighting
 \usepackage{minted}
