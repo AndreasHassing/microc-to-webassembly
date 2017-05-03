@@ -190,12 +190,14 @@ let rec cExpr varEnv funEnv depth = function
           END;
       END]
   | Call (name, argExprs)   ->
-    let cArgs = List.concat (List.map (fun e -> cExpr varEnv funEnv depth e) argExprs)
     let funId = getFunId name funEnv
     let funArgCount = List.length (snd (getFunSig (getFunDec funId funEnv)))
-    if cArgs.Length = funArgCount
-    then cArgs @ [CALL funId]
-    else failwith (sprintf "function %s expects %d args, got %d" name funArgCount cArgs.Length)
+
+    if argExprs.Length <> funArgCount
+    then failwith (sprintf "function %s expects %d args, got %d. Args received: %A" name funArgCount argExprs.Length argExprs)
+
+    let cArgs = List.concat (List.map (fun e -> cExpr varEnv funEnv depth e) argExprs)
+    cArgs @ [CALL funId]
 and cStmtOrDec varEnv funEnv depth = function
   | Dec (typ, name)      -> allocateLocVar varEnv name depth false, []
   | Stmt stm             -> cStmt varEnv funEnv depth stm
@@ -243,8 +245,8 @@ and cStmt varEnv funEnv depth = function
                 :: [END;
                 END]
   | Expr exp
-  | Return (Some exp)    -> varEnv, cExpr varEnv funEnv depth exp
-  | Return None          -> varEnv, []
+  | Return (Some exp)    -> varEnv, cExpr varEnv funEnv depth exp @ [RETURN]
+  | Return None          -> varEnv, [RETURN]
   | Block _ as b         -> cBlock varEnv funEnv (depth+1) b
 
 let cProgram (Prog topdecs) =

@@ -4,6 +4,6 @@
 // takes no arguments and does not return anything.
 void start()
 {
-	print 42;
+	print - 42;
 	println;
 }
