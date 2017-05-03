@@ -138,14 +138,14 @@ let rec cExpr varEnv funEnv depth = function
                                @ cExpr varEnv funEnv depth bExp
                                @ [SELECT]
   | CstI i                  -> [I32_CONST i]
-  | Prim1 (op, exp)         ->
+  | Prim1 (op, exp) ->
       cExpr varEnv funEnv depth exp
     @ (match op with
        | "!" -> [I32_EQZ]
        | "printi"
        | "printc" -> [CALL (getFunId op funEnv)]
        | _   -> failwith (sprintf "unknown prim1 operator: %s" op))
-  | Prim2 (op, exp1, exp2)  ->
+  | Prim2 (op, exp1, exp2) ->
       cExpr varEnv funEnv depth exp1
     @ cExpr varEnv funEnv depth exp2
     @ (match op with
@@ -161,7 +161,7 @@ let rec cExpr varEnv funEnv depth = function
        | ">=" -> [I32_GE_S]
        | "<=" -> [I32_LE_S]
        | _    -> failwith (sprintf "unknown prim2 operator: %s" op))
-  | Andalso (exp1, exp2)    ->
+  | Andalso (exp1, exp2) ->
     let lhs = cExpr varEnv funEnv depth exp1
     let rhs = cExpr varEnv funEnv depth exp2
     lhs
@@ -175,7 +175,7 @@ let rec cExpr varEnv funEnv depth = function
       ELSE;
         I32_CONST 0;
       END]
-  | Orelse (exp1, exp2)     ->
+  | Orelse (exp1, exp2) ->
     let lhs = cExpr varEnv funEnv depth exp1
     let rhs = cExpr varEnv funEnv depth exp2
     lhs
@@ -189,7 +189,7 @@ let rec cExpr varEnv funEnv depth = function
             I32_CONST 0;
           END;
       END]
-  | Call (name, argExprs)   ->
+  | Call (name, argExprs) ->
     let funId = getFunId name funEnv
     let funArgCount = List.length (snd (getFunSig (getFunDec funId funEnv)))
 
@@ -199,31 +199,31 @@ let rec cExpr varEnv funEnv depth = function
     let cArgs = List.collect (fun e -> cExpr varEnv funEnv depth e) argExprs
     cArgs @ [CALL funId]
 and cStmtOrDec varEnv funEnv depth = function
-  | Dec (typ, name)      -> allocateLocVar varEnv name depth false, []
-  | Stmt stmt            -> cStmt varEnv funEnv depth stmt
+  | Dec (typ, name) -> allocateLocVar varEnv name depth false, []
+  | Stmt stmt       -> cStmt varEnv funEnv depth stmt
 and cBlock varEnv funEnv depth = function
   | Block stmtOrDecs ->
-      // discard all variables already declared at- and below the current depth
-      let discardScopes currentDepth locals =
-        locals
-        |> mapKeys
-        |> Seq.choose (fun ((name, varDepth) as x) ->
-            if varDepth >= currentDepth
-            then Some(x)
-            else None)
-        |> Seq.fold (fun locals key ->
-             // it may look like we try to find locals with scope set to false here,
-             // however, it is just record notation for setting InScope to false
-             Map.add key { Map.find key locals with InScope = false } locals
-           ) locals
+    // discard all variables already declared at- and below the current depth
+    let discardScopes currentDepth locals =
+      locals
+      |> mapKeys
+      |> Seq.choose (fun ((name, varDepth) as x) ->
+          if varDepth >= currentDepth
+          then Some(x)
+          else None)
+      |> Seq.fold (fun locals key ->
+            // it may look like we try to find locals with scope set to false here,
+            // however, it is just record notation for setting InScope to false
+            Map.add key { Map.find key locals with InScope = false } locals
+          ) locals
 
-      let varEnv, cStmts =
-        List.fold (fun (varEnv, cStmts) stmtOrDec ->
-                    let varEnv, cStmt = (cStmtOrDec varEnv funEnv depth stmtOrDec)
-                    varEnv, cStmts @ cStmt
-                  ) (varEnv, []) stmtOrDecs
-      let varEnv = { varEnv with Locals = discardScopes depth varEnv.Locals }
-      varEnv, BLOCK (BVoid) :: cStmts @ [END]
+    let varEnv, cStmts =
+      List.fold (fun (varEnv, cStmts) stmtOrDec ->
+                  let varEnv, cStmt = (cStmtOrDec varEnv funEnv depth stmtOrDec)
+                  varEnv, cStmts @ cStmt
+                ) (varEnv, []) stmtOrDecs
+    let varEnv = { varEnv with Locals = discardScopes depth varEnv.Locals }
+    varEnv, BLOCK (BVoid) :: cStmts @ [END]
   | anyOtherStmt ->
     failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyOtherStmt)
 and cStmt varEnv funEnv depth = function
@@ -238,7 +238,7 @@ and cStmt varEnv funEnv depth = function
              @ IF (ifRetTyp) :: stmTCode
              @ ELSE :: stmFCode
              @ [END]
-  | While (exp, stm)     ->
+  | While (exp, stm) ->
     let loopVarEnv, loopCode = cStmt varEnv funEnv (depth+1) stm
     loopVarEnv, BLOCK (BVoid)
                 :: LOOP (BVoid)
@@ -247,10 +247,10 @@ and cStmt varEnv funEnv depth = function
                   @  BR 0uy
                 :: [END;
                 END]
-  | Expr exp             -> varEnv, cExpr varEnv funEnv depth exp
-  | Return (Some exp)    -> varEnv, cExpr varEnv funEnv depth exp @ [RETURN]
-  | Return None          -> varEnv, [RETURN]
-  | Block _ as b         -> cBlock varEnv funEnv (depth+1) b
+  | Expr exp          -> varEnv, cExpr varEnv funEnv depth exp
+  | Return (Some exp) -> varEnv, cExpr varEnv funEnv depth exp @ [RETURN]
+  | Return None       -> varEnv, [RETURN]
+  | Block _ as b      -> cBlock varEnv funEnv (depth+1) b
 
 let cProgram (Prog topdecs) =
   let emptyFunEnv = { Ids = Map.empty; Types = Map.empty; Decs = Map.empty; }
