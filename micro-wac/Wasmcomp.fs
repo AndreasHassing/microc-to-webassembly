@@ -210,8 +210,7 @@ and cBlock varEnv funEnv depth = function
         |> Seq.choose (fun ((name, varDepth) as x) ->
             if varDepth >= currentDepth
             then Some(x)
-            else None
-          )
+            else None)
         |> Seq.fold (fun locals key ->
              // it may look like we try to find locals with scope set to false here,
              // however, it is just record notation for setting InScope to false
@@ -333,17 +332,16 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   //#region Type section [1]
   let typeSectMapper ((retTyp, argTyps), i) =
     getValueTypeCode Func                               // type code
-    :: i2leb (List.length argTyps)                   // num of args
+    :: i2leb (List.length argTyps)                      // num of args
     @  List.map (fun _ -> getValueTypeCode I32) argTyps // arg types
     @  match retTyp with                                // number of return types (can only be 1, as of WASM v1.0)
        | Some _ -> [1uy; getValueTypeCode I32]          // the return type
        | None   -> [0uy]                                // ... or nothing returned
-  if (Map.count funEnv.Types) > 0 then
-    let typeSectionData = i2leb (Map.count funEnv.Types)
-                        @ (funEnv.Types |> mapToSeqSortedBy snd
-                                        |> Seq.map typeSectMapper
-                                        |> ofSeqConcat)
-    writeSection TYPE typeSectionData
+  let typeSectionData = i2leb (Map.count funEnv.Types)
+                      @ (funEnv.Types |> mapToSeqSortedBy snd
+                                      |> Seq.map typeSectMapper
+                                      |> ofSeqConcat)
+  writeSection TYPE typeSectionData
   //#endregion
 
   //#region Import section [2]
