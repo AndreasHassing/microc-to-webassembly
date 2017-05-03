@@ -1,4 +1,5 @@
 // micro-C example 10 -- return a result from function; nested blocks
+// PASSES
 
 void main(int n)
 {
@@ -7,6 +8,7 @@ void main(int n)
 	while (i < n)
 	{
 		print fac(i);
+		println;
 		i = i + 1;
 	}
 	print n;
