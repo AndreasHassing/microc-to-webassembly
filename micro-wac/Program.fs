@@ -38,9 +38,9 @@ let main argv =
 
   if opts.verbose then printfn "Compiling %s to WebAssembly Binary" opts.cfile
 
-  let programAsAST = Parse.fromFile opts.cfile
-  let wasmFilename = renameExtension opts.cfile "wasm"
   try
+    let programAsAST = Parse.fromFile opts.cfile
+    let wasmFilename = renameExtension opts.cfile "wasm"
     Wasmcomp.compileToFile wasmFilename programAsAST opts.withHtml
 
     if opts.verbose then printfn "Finished compiling to %s" wasmFilename
