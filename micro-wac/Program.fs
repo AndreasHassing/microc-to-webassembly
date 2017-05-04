@@ -8,19 +8,19 @@ type CommandLineOptions = {
 }
 
 let printHelpMsg () =
-  printfn @"To compile: wasmcomp.exe [-v] [-html] <microc-file>.c"
+  printfn @"To compile: wasmcomp.exe [-verbose] [-html] <microc-file>.c"
 
 /// Parses command line arguments into a CommandLineOptions record.
 /// Inspired by https://fsharpforfunandprofit.com/posts/pattern-matching-command-line/
 let parseCommandLine args =
   let rec parseArgs optionsSoFar = function
-    | []            -> optionsSoFar
-    | "-v" :: xs    -> let newOpts = { optionsSoFar with verbose = true }
-                       parseArgs newOpts xs
-    | "-html" :: xs -> let newOpts = { optionsSoFar with withHtml = true }
-                       parseArgs newOpts xs
-    | cfile :: []   -> { optionsSoFar with cfile = cfile }
-    | _             -> printHelpMsg (); { optionsSoFar with error = true }
+    | []               -> optionsSoFar
+    | "-verbose" :: xs -> let newOpts = { optionsSoFar with verbose = true }
+                          parseArgs newOpts xs
+    | "-html" :: xs    -> let newOpts = { optionsSoFar with withHtml = true }
+                          parseArgs newOpts xs
+    | cfile :: []      -> { optionsSoFar with cfile = cfile }
+    | _                -> { optionsSoFar with error = true }
   parseArgs { cfile = ""; verbose = false; withHtml = false; error = false; } args
 
 open System.IO
@@ -46,4 +46,6 @@ let main argv =
     if opts.verbose then printfn "Finished compiling to %s" wasmFilename
     0 // return an integer exit code; 0 means A-OK
   with
-    | ex -> printf "Failed to compile: %s" (ex.ToString()); 1
+    | ex -> printfn "Failed to compile: %s" ex.Message
+            if opts.verbose then printfn "StackTrace: %s" ex.StackTrace
+            1 // 1 means "Gosh-Darn, something bad happened"
