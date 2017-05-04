@@ -26,11 +26,11 @@
 
     i32.const 8     ;; memory position 8
     i32.const 54    ;; 54 in ascii is the char '6'
-    i32.store8      ;; store the number 54, casted to a byte, at memory position 8 (spanning 1 byte)
+    i32.store8      ;; store the number 54, cast to a byte, at memory position 8 (spanning 1 byte)
 
     i32.const 9     ;; memory position 9
     i32.const 62    ;; 62 in ascii is the char '>'
-    i32.store8      ;; store the number 62, casted to a byte, at memory position 9 (spanning 1 byte)
+    i32.store8      ;; store the number 62, cast to a byte, at memory position 9 (spanning 1 byte)
   )
   (start $start)
 )
