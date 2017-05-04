@@ -190,7 +190,7 @@ let i2b (n : int) =
 
 let i2leb value =
   // integer to LEB128 varint as specced in http://dwarfstd.org/doc/Dwarf3.pdf
-  // implementation from: (MIT licensed project)
+  // implementation inspired by: (MIT licensed project)
   // https://github.com/yageek/LEB128/blob/d05713742dd56bc2d1eaed44956f20f6755fa4e9/Sources/LEB128.swift#L79
   // translated to FP
   let rec inner bytes value more count =
