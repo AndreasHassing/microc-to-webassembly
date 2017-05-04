@@ -342,9 +342,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
        | Some _ -> [1uy; getValueTypeCode I32]          // the return type
        | None   -> [0uy]                                // ... or nothing returned
   let typeSectionData = i2leb (Map.count funEnv.Types)
-                      @ (funEnv.Types |> mapToSeqSortedBy snd
-                                      |> Seq.map typeSectMapper
-                                      |> ofSeqConcat)
+                        @ (funEnv.Types |> mapToSeqSortedBy snd
+                                        |> Seq.map typeSectMapper
+                                        |> ofSeqConcat)
   writeSection TYPE typeSectionData
   //#endregion
 
@@ -362,8 +362,8 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     @ importKind :: importFunctionSignatureIndex
   let importSectionData = i2leb (Map.count imports)
                           @ (imports |> mapToSeqSortedBy snd
-                                      |> Seq.map importSectMapper
-                                      |> ofSeqConcat)
+                                     |> Seq.map importSectMapper
+                                     |> ofSeqConcat)
   writeSection IMPORT importSectionData
   //#endregion
 
@@ -394,9 +394,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   let globals = (List.head varEnvs).Globals
   if (Map.count globals) > 0 then
     let globalSectionData = i2leb (Map.count globals)
-                          @ (globals |> mapToSeqSortedBy snd
-                                     |> Seq.map globalSectMapper
-                                     |> ofSeqConcat)
+                            @ (globals |> mapToSeqSortedBy snd
+                                       |> Seq.map globalSectMapper
+                                       |> ofSeqConcat)
     writeSection GLOBAL globalSectionData
   //#endregion
 
@@ -408,9 +408,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     @ exportKind :: i2leb id
   if (Map.count exports) > 0 then
     let exportSectionData = i2leb (Map.count exports)
-                          @ (exports |> mapToSeqSortedBy snd
-                                     |> Seq.map exportSectMapper
-                                     |> ofSeqConcat)
+                            @ (exports |> mapToSeqSortedBy snd
+                                       |> Seq.map exportSectMapper
+                                       |> ofSeqConcat)
     writeSection EXPORT exportSectionData
   //#endregion
 
