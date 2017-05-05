@@ -45,6 +45,11 @@ type Instruction =
   | TEE_LOCAL of Index                 (* set the current value of a local variable and return it *)
   | GET_GLOBAL of Index                (* get the current value of a global variable              *)
   | SET_GLOBAL of Index                (* set the current value of a global variable              *)
+  // Memory-related operators
+  | I32_LOAD                           (* load 4 bytes from linear memory as i32                  *)
+  | I32_LOAD8_U                        (* load 1 byte from linear memory and zero-extend to i32   *)
+  | I32_STORE                          (* store i32 sequentially in linear memory                 *)
+  | I32_STORE8                         (* wrap i32 to byte and store in linear memory             *)
   // Constants (MicroC only supports 32-bit signed integer operands)
   | I32_CONST of int32                 (* 32-bit signed integer constant                          *)
   // Comparison operators

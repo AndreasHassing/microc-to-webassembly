@@ -57,6 +57,11 @@ type Instruction =
   | TEE_LOCAL of Index                 (* set the current value of a local variable and return it *)
   | GET_GLOBAL of Index                (* get the current value of a global variable              *)
   | SET_GLOBAL of Index                (* set the current value of a global variable              *)
+  // Memory-related operators
+  | I32_LOAD                           (* load 4 bytes from linear memory as i32                  *)
+  | I32_LOAD8_U                        (* load 1 byte from linear memory and zero-extend to i32   *)
+  | I32_STORE                          (* store i32 sequentially in linear memory                 *)
+  | I32_STORE8                         (* wrap i32 to byte and store in linear memory             *)
   // Constants (MicroC only supports 32-bit signed integer operands)
   | I32_CONST of int32                 (* 32-bit signed integer constant                          *)
   // Comparison operators
@@ -92,7 +97,6 @@ type Instruction =
   | I32_POPCNT                         (* sign-agnostic count number of one bits                  *)
   // NOTE: It is not possible to create function pointers in MicroC
   //| CALL_INDIRECT                      (* call function indirectly via a table                    *)
-  // Memory-related operators -- NOT IMPLEMENTED DUE TO TIME CONSTRAINTS
   // Conversions (no need to implement, not supported by MicroC)
   // Reinterpretations (no need to implement, not supported by MicroC)
 
@@ -121,7 +125,12 @@ let getOpCode = function
   | TEE_LOCAL _   -> 0x22uy
   | GET_GLOBAL _  -> 0x23uy
   | SET_GLOBAL _  -> 0x24uy
-  // MicroC only supports 32-bit signed integer data
+  // Memory-related operators
+  | I32_LOAD      -> 0x28uy
+  | I32_LOAD8_U   -> 0x2duy
+  | I32_STORE     -> 0x36uy
+  | I32_STORE8    -> 0x3auy
+  // The distinct union of types between MicroC and WASM is a 32 bit integer.
   // Constants
   | I32_CONST _   -> 0x41uy
   // Comparison operators
@@ -220,5 +229,9 @@ let emitbytes instr bytes =
   | GET_GLOBAL i
   | SET_GLOBAL i               -> opCode :: i2leb i @ bytes
   | I32_CONST n                -> opCode :: i2leb n @ bytes
-  // IMMEDIATE-FREE OPERATORS
+  // mem store instructions also need alignment and offset immediates,
+  // they are, however, always the same for 32-bit integer and single byte values
+  | I32_STORE | I32_LOAD       -> opCode :: 2uy :: 0uy :: bytes
+  | I32_STORE8 | I32_LOAD8_U   -> opCode :: 0uy :: 0uy :: bytes
+  // other immediate-free instructions
   | _                          -> opCode :: bytes
