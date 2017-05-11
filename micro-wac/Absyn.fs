@@ -24,8 +24,8 @@ and Expr =
   | CstI of int                      (* Constant                    *)
   | Prim1 of string * Expr           (* Unary primitive operator    *)
   | Prim2 of string * Expr * Expr    (* Binary primitive operator   *)
-  | Andalso of Expr * Expr           (* Sequential and              *)
-  | Orelse of Expr * Expr            (* Sequential or               *)
+  | Andalso of Expr * Expr           (* Sequential and &&           *)
+  | Orelse of Expr * Expr            (* Sequential or  ||           *)
   | Call of string * Expr list       (* Function call f(...)        *)
 
 and Access =
