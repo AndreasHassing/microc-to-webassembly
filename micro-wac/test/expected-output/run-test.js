@@ -30,7 +30,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
 /* WASM Functions */
 let jsExports = {
-	printi: i => console.log(i)
+	printi: i => console.log(i),
+	printc: c => console.log(String.fromCharCode(c)),
 };
 
 let currentlyLoadedWasmModule = {};
