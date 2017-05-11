@@ -23,6 +23,8 @@ type BlockType =
   | BReturn of ValueType                (* single result *)
   | BVoid                               (* 0 results     *)
 
+type MemoryOffset = int
+
 let getValueTypeCode = function
   | I32     -> 0x7fuy
   | AnyFunc -> 0x70uy
@@ -58,10 +60,10 @@ type Instruction =
   | GET_GLOBAL of Index                (* get the current value of a global variable              *)
   | SET_GLOBAL of Index                (* set the current value of a global variable              *)
   // Memory-related operators
-  | I32_LOAD                           (* load 4 bytes from linear memory as i32                  *)
-  | I32_LOAD8_U                        (* load 1 byte from linear memory and zero-extend to i32   *)
-  | I32_STORE                          (* store i32 sequentially in linear memory                 *)
-  | I32_STORE8                         (* wrap i32 to byte and store in linear memory             *)
+  | I32_LOAD of MemoryOffset           (* load 4 bytes from linear memory as i32                  *)
+  | I32_LOAD8_U of MemoryOffset        (* load 1 byte from linear memory and zero-extend to i32   *)
+  | I32_STORE of MemoryOffset          (* store i32 sequentially in linear memory                 *)
+  | I32_STORE8 of MemoryOffset         (* wrap i32 to byte and store in linear memory             *)
   // Constants (MicroC only supports 32-bit signed integer operands)
   | I32_CONST of int32                 (* 32-bit signed integer constant                          *)
   // Comparison operators
@@ -126,10 +128,10 @@ let getOpCode = function
   | GET_GLOBAL _  -> 0x23uy
   | SET_GLOBAL _  -> 0x24uy
   // Memory-related operators
-  | I32_LOAD      -> 0x28uy
-  | I32_LOAD8_U   -> 0x2duy
-  | I32_STORE     -> 0x36uy
-  | I32_STORE8    -> 0x3auy
+  | I32_LOAD _    -> 0x28uy
+  | I32_LOAD8_U _ -> 0x2duy
+  | I32_STORE _   -> 0x36uy
+  | I32_STORE8 _  -> 0x3auy
   // The distinct union of types between MicroC and WASM is a 32 bit integer.
   // Constants
   | I32_CONST _   -> 0x41uy
@@ -230,8 +232,8 @@ let emitbytes instr bytes =
   | SET_GLOBAL i               -> opCode :: i2leb i @ bytes
   | I32_CONST n                -> opCode :: i2leb n @ bytes
   // mem store instructions also need alignment and offset immediates,
-  // they are, however, always the same for 32-bit integer and single byte values
-  | I32_STORE | I32_LOAD       -> opCode :: 2uy :: 0uy :: bytes
-  | I32_STORE8 | I32_LOAD8_U   -> opCode :: 0uy :: 0uy :: bytes
+  // alignment is, however, always the same for 32-bit integer and single byte values
+  | I32_STORE offset | I32_LOAD offset     -> opCode :: 2uy :: i2leb offset @ bytes
+  | I32_STORE8 offset | I32_LOAD8_U offset -> opCode :: 0uy :: i2leb offset @ bytes
   // other immediate-free instructions
   | _                          -> opCode :: bytes
