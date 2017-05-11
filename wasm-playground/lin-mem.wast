@@ -15,6 +15,11 @@
     call $getCharWithAddress ;; call the function getCharWithAddress, using the value on the stack as argument
     call $printc             ;; call the imported print char function
   )
+  (func $getTest
+    i32.const 0
+    i32.load offset=9
+    call $printi
+  )
   (func $start
     i32.const 0     ;; memory position 0
     i32.const -2000 ;; the number -2000
@@ -31,6 +36,12 @@
     i32.const 9     ;; memory position 9
     i32.const 62    ;; 62 in ascii is the char '>'
     i32.store8      ;; store the number 62, cast to a byte, at memory position 9 (spanning 1 byte)
+
+    i32.const 0
+    i32.const 5
+    i32.store8 offset=10
+
+    call $getTest
   )
   (start $start)
 )
