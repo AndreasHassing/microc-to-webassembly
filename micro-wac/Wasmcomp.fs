@@ -141,21 +141,32 @@ let shallow varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth - 1 }
 let deepen varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth + 1 }
 
 let rec accessVar varEnv funEnv op = function
-  | AccVar x            -> let var = lookup varEnv.Vars varEnv.CurrentDepth x
-                           match var with
-                           | LocVar lv -> match op with
-                                          | GetValue -> [I32_CONST lv.Addr; varAccOp false lv.Type lv.Offset]
-                                          | GetAddr  -> [I32_CONST (lv.Addr + lv.Offset)]
-                                          | Set exp  -> I32_CONST lv.Addr :: cExpr varEnv funEnv exp @ [varAssOp false lv.Type lv.Offset]
-                           | ArgVar av -> match op with
-                                          | GetValue -> [varAccOp true av.Type av.Id]
-                                          | GetAddr  -> failwith "It is not possible to get the address of arguments (bug)."
-                                          | Set exp  -> cExpr varEnv funEnv exp @ [varAssOp true av.Type av.Id]
-                           | GloVar gv -> match op with
-                                          | GetValue -> [I32_CONST gv.Addr; varAccOp false gv.Type 0]
-                                          | GetAddr  -> [I32_CONST gv.Addr]
-                                          | Set exp  -> I32_CONST gv.Addr :: cExpr varEnv funEnv exp @ [varAssOp false gv.Type 0]
-  | AccDeref exp        -> cExpr varEnv funEnv exp
+  | AccVar x ->
+    let var = lookup varEnv.Vars varEnv.CurrentDepth x
+    match var with | LocVar lv -> match op with
+                                  | GetValue -> [I32_CONST lv.Addr; varAccOp false lv.Type lv.Offset]
+                                  | GetAddr  -> [I32_CONST (lv.Addr + lv.Offset)]
+                                  | Set exp  -> I32_CONST lv.Addr
+                                                :: cExpr varEnv funEnv exp
+                                                @ [varAssOp false lv.Type lv.Offset]
+                   | ArgVar av -> match op with
+                                  | GetValue -> [varAccOp true av.Type av.Id]
+                                  | GetAddr  -> match av.Type with
+                                                | TypP _ -> [varAccOp true av.Type av.Id]
+                                                | _      -> failwith (sprintf "can't get address of function argument %A" av)
+                                  | Set exp  -> cExpr varEnv funEnv exp @ [varAssOp true av.Type av.Id]
+                   | GloVar gv -> match op with
+                                  | GetValue -> [I32_CONST gv.Addr; varAccOp false gv.Type 0]
+                                  | GetAddr  -> [I32_CONST gv.Addr]
+                                  | Set exp  -> I32_CONST gv.Addr
+                                                :: cExpr varEnv funEnv exp
+                                                @ [varAssOp false gv.Type 0]
+  | AccDeref exp -> match op with
+                    | GetValue -> cExpr varEnv funEnv exp @ [varAccOp false TypI 0]
+                    | GetAddr  -> cExpr varEnv funEnv exp
+                    | Set expS -> cExpr varEnv funEnv exp
+                                  @ cExpr varEnv funEnv expS
+                                  @ [varAssOp false TypI 0]
   | AccIndex (acc, exp) -> failwith "compilation of arrays has not been implemented"
 and cExpr varEnv funEnv = function
   | Access acc              -> accessVar varEnv funEnv GetValue acc
@@ -454,7 +465,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   //#region Code section [10]
   let varEnvAndFunCode = List.zip varEnvs funCode
   let codeSectMapper (varEnv, instrs) =
-    let codeBytes = code2bytes instrs
+    // there will always be 0 local variable declarations
+    // as variables are stored in linear memory.
+    let codeBytes = 0uy :: code2bytes instrs
     i2leb codeBytes.Length @ codeBytes
   if not (List.isEmpty varEnvAndFunCode) then
     let codeSectionData = i2leb (funCode.Length)
