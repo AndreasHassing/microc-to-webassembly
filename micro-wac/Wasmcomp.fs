@@ -271,24 +271,26 @@ and cStmt varEnv funEnv = function
     let stmtContainsReturn =
       stmTCode |> List.exists (fun instr -> instr = RETURN)
     let ifRetTyp = if stmtContainsReturn then BReturn I32 else BVoid
-    varEnvF, cExpr varEnv funEnv bExp
-             @ IF (ifRetTyp) :: stmTCode
-             @ ELSE :: stmFCode
-             @ [END]
+    shallow varEnvF, cExpr varEnv funEnv bExp
+                     @ IF (ifRetTyp) :: stmTCode
+                     @ ELSE :: stmFCode
+                     @ [END]
   | While (exp, stm) ->
     let loopVarEnv, loopCode = cStmt (deepen varEnv) funEnv stm
-    loopVarEnv, BLOCK (BVoid)
-                :: LOOP (BVoid)
-                  :: cExpr loopVarEnv funEnv exp @ I32_EQZ :: BR_IF 1uy
-                  :: loopCode
-                  @  BR 0uy
-                :: [END;
-                END]
+    shallow loopVarEnv, BLOCK (BVoid)
+                        :: LOOP (BVoid)
+                          :: cExpr loopVarEnv funEnv exp @ I32_EQZ :: BR_IF 1uy
+                          :: loopCode
+                          @  BR 0uy
+                        :: [END;
+                        END]
   | Expr exp          -> varEnv, cExpr varEnv funEnv exp
   | Return (Some exp) -> varEnv, cExpr varEnv funEnv exp @ [RETURN]
   | Return None       -> varEnv, [RETURN]
-  | Block _ as b      -> cBlock (deepen varEnv) funEnv b
-
+  | Block _ as b      -> let deeperVarEnv, code = cBlock (deepen varEnv) funEnv b
+                         // step up the depth after the block
+                         let shallowerVarEnv = shallow deeperVarEnv
+                         shallowerVarEnv, code
 let cProgram (Prog topdecs) =
   let emptyFunEnv = { Ids = Map.empty; Types = Map.empty; Decs = Map.empty; }
   let emptyVarEnv = { Vars = [];
