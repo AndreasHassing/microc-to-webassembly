@@ -20,7 +20,7 @@ This has been done several times before, but doing it for oneself can be a very 
 )
 ```
 
-Compiled to WASM (slightly more detailed than `wast2wasm -v`)
+Compiled to WASM (I added more details than `wast2wasm -v` would)
 ```
 ; Header
 00 61 73 6D                  ; translates to '\0asm', WebAssembly's magic number. Is there for quick file type detection.
