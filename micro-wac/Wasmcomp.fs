@@ -299,9 +299,7 @@ let cProgram (Prog topdecs) =
                       CurrentOffset = 0;
                       CurrentDepth = 0 }
 
-  // add printi and printc import functions, required for spec compliance with MicroC
-  // the order of insertion is important, due to printIntFunctionIndex and
-  // printCharFunctionIndex.
+  // add printi and printc import functions required for spec compliance with MicroC
   let topdecs = Funsig(true, None, "printi", [(TypI, "i")])
                 :: Funsig(true, None, "printc", [(TypC, "c")])
                 :: topdecs
