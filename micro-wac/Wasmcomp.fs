@@ -133,9 +133,12 @@ let mapKeys map = map |> Map.toSeq |> Seq.map fst
 /// Get the values of a map, as a sequence.
 let mapValues map = map |> Map.toSeq |> Seq.map snd
 
-let deepen varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth + 1 }
-
+/// shallow steps a single up in depth in the variable environment.
+/// The keyword 'raise' was already taken.
 let shallow varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth - 1 }
+
+/// deepen increases the current depth of the variable environment.
+let deepen varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth + 1 }
 
 let rec accessVar varEnv funEnv op = function
   | AccVar x            -> let var = lookup varEnv.Vars varEnv.CurrentDepth x
