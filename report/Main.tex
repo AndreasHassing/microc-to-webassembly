@@ -119,6 +119,9 @@ What follows is the planned activities and sources of information.
 \end{itemize}
 \pagebreak
 
+\subsection{Changes to Method and Problem Definition}
+I realized while coding the compiler that I would have to stop working on it prematurely, in order to get the web back- and frontend working as well, due to an underestimation on my part. On a meeting with Niels Hallenberg on May 1st we agreed to discard the web part of this project. Instead, I have added a flag (\texttt{-html}) to the compiler which allows the generation of a HTML template to go along with the .wasm output. The HTML template makes it easy to test compiled WebAssembly binaries, as you can serve the HTML with a simple HTTP server\footnote{I recommend using \texttt{npm install -g http-server} with Node, or \texttt{python -m SimpleHTTPServer} for Python2 or \texttt{python -m http.server} for Python3.}.
+
 \section{Problem Analysis}
 In this section, the problem will be dissected and analysed. The definition of a compiler is defined and the WebAssembly specification and binary encoding is scrutinised.
 
