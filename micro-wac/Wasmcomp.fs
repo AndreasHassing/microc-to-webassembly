@@ -5,31 +5,6 @@
 
    based on Comp.fs by
    sestoft@itu.dk * 2009-09-23, 2011-11-10
-
-   A value is an integer; it may represent an integer or a pointer,
-   where a pointer is just an address in the store (of a variable or
-   pointer or the base address of an array).
-
-   The compile-time environment maps a global variable to a fixed
-   store address, and maps a local variable to an offset into the
-   current stack frame, relative to its bottom.  The run-time store
-   maps a location to an integer.  This freely permits pointer
-   arithmetics, as in real C.  A compile-time function environment
-   maps a function name to a code label.  In the generated code,
-   labels are replaced by absolute code addresses.
-
-   Expressions can have side effects.  A function takes a list of
-   typed arguments and may optionally return a result.
-
-   Arrays can be one-dimensional and constant-size only.  For
-   simplicity, we represent an array as a variable which holds the
-   address of the first array element.  This is consistent with the
-   way array-type parameters are handled in C, but not with the way
-   array-type variables are handled.  Actually, this was how B (the
-   predecessor of C) represented array variables.
-
-   The store behaves as a stack, so all data except global variables
-   are stack allocated: variables, function parameters and arrays.
 *)
 
 /// Wasmcomp contains functions to compile a MicroC program (as an AST) to a WebAssembly binary.

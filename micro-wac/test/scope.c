@@ -10,7 +10,7 @@ void start() {
 
 	{
 		int x;
-		print x; // should print 0
+		print x; // should print 0, prints 5 with original MicroC compiler
 		println;
 		x = 3;
 		print x;
