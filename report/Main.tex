@@ -4,6 +4,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[hidelinks]{hyperref}
 
+\usepackage[rightcaption]{sidecap}
 \usepackage{graphicx}
 \graphicspath{ {images/} }
 
@@ -83,22 +84,7 @@ The purpose of this project is to build a compiler, also called a translator, fr
 
 MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.
 
-\subsection{Compilers}
-Before the compiler design is even considered, an important, and perhaps trivial, question must be asked and answered: "What is a compiler?".
-
-According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes the source code of another program as input, usually some higher-level language such as C\#, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#, or binary machine code instructions - in the case of C. There are more low-level representations out in the wild, but these two will be the ones referenced in this report.
-
-Many programs are written in high-level languages that run within an assisting runtime environment and compiles to a variant of bytecode, with an instruction set specified in the virtual machine of the runtime. When the runtime is started and the program bytecode is passed to it, it performs a just-in-time (JIT) compilation to native machine code using the instruction set of the machine's processor. The .NET CLR and Java's JRE are two such runtimes that both support several higher-level languages, such as C\#, F\#, Java and Scala. Runtime environments often come equipped with integrated memory management in the form of a garbage collector.
-
-Programs written in comparatively lower-level languages, such as C and C++, are usually compiled ahead-of-time (AOT) to native machine code using the instruction set of the compiling machine. One can often configure the compiler to target other operating systems and processor architectures than that of the compiling system. In these lower-level languages, the programmer is often challenged with manually managing dynamic memory.
-
-Note, that nothing stops us from implementing a runtime environment that supports a high-level language, such as C, which can then run code written in that language as a JIT compiled application. The task may be non-trivial.
-
-%TODO: Consider if this subsubsection has merit.
-%\subsubsection{So, which is better, AOT or JIT?}
-
-
-\section{Problem Definition}
+\section{Problem Definition} % approx. 
 WebAssembly (WASM) is a new up-and-coming binary code format for the user-facing web, designed to work alongside JavaScript as a more portable, size- and load-time-efficient, ahead-of-time-compiled alternative. 
 
 The binary WASM format is not bound to be emitted by JavaScript (asm.js) only, potentially bringing your favourite language to the browser front-end. If a language can compile to a intermediate representation supported by WASM (LLVM IR, for instance), it can be compiled to the binary WASM format. 
@@ -124,8 +110,38 @@ What follows is the planned activities and sources of information.
 	\item Extensions to the MicroC language will be implemented.
 	\item Simple optimizations to the generated WebAssembly code.
 \end{itemize}
+\pagebreak
 
 \section{Problem Analysis}
+In this section, the problem will be dissected and analysed. The definition of a compiler is defined and the WebAssembly specification and binary encoding is scrutinised.
+
+\subsection{Compilers in General}
+Before the compiler design is even considered, an important, and perhaps trivial, question must be asked and answered: "What is a compiler?".
+
+According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes the source code of another program as input, usually some higher-level language such as C\#, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#, or binary machine code instructions - in the case of C. There are more low-level representations out in the wild, but these two will be the ones referenced in this report.
+
+Many programs are written in higher-level languages that run within an assisting runtime environment and compiles to a variant of bytecode, with an instruction set specified in the virtual machine of the runtime. When the runtime is started and the program bytecode is passed to it, it performs a just-in-time (JIT) compilation to native machine code using the instruction set of the machine's processor. The .NET CLR and Java's JRE are two such runtimes that both support several higher-level languages, such as C\#, F\#, Java and Scala. Runtime environments often come equipped with integrated memory management in the form of a garbage collector.
+
+Programs written in comparatively lower-level languages, such as C and C++, are usually compiled ahead-of-time (AOT) to native machine code using the instruction set of the compiling machine. One can often configure the compiler to target other operating systems and processor architectures than that of the compiling system. In these lower-level languages, the programmer is often challenged with manually managing dynamic memory.
+
+Note, that nothing stops us from implementing a runtime environment that supports a high-level language, such as C, which can then run code written in that language as a JIT compiled application. The task may be non-trivial.
+
+Then, there is JavaScript, a loosely typed language that runs in browsers. JavaScript is compiled by a JIT compiler at runtime\footnote{This is not always true. Ignition, a newly developed interpreter for V8 (Chrome's JavaScript engine), is used alone or along with JIT compilation, especially on devices where a lower- memory footprint, or battery usage is beneficial (Smartphones, for instance)~\cite{video:thompson-js-perf-v8-and-wasm}.}, which takes the code, turns it into abstract syntax and then to machine code~\cite[p.~13]{slides:lund-v8}. During the execution of a JavaScript program, the JIT compiler will attempt to optimise the generated machine code by making probabilistic assumptions about program behaviour. These assumptions can eventually fail, thus forcing the JIT to throw away optimisations based on falsified claims - this is a cause of non-deterministic execution speed of JavaScript programs. The JIT's that are found in modern browsers make a lot of intelligent optimisations on what is generally referred to as \texttt{warm} and \texttt{hot} code paths\footnote{Warm and hot code, is code segments that are executed regularly, and often, respectively.}, thereby greatly increasing performance without sacrificing excessive resources. When a JIT compiler is run on a system with multiple processor cores, it can run in parallel, thereby generating optimisations without blocking the main thread of the program.
+
+\subsubsection{Benefits of AOT Compilation}
+\textbf{Static Type Checking} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking happens late, and errors that didn't show during development, can show up in the users browser.\\
+
+\noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare, to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process. This makes an AOT compiler preferred for live- and runtime critical systems.
+
+%TODO: add more to AOT benefits?
+%TODO: add JIT benefits?
+
+\subsection{WebAssembly}
+
+\subsection{History}
+There was only 1 language that could run natively in all browsers less than a year ago: JavaScript. The web is built around it, and the language has flourished and expanded beyond the land of browsers, in the form of execution environments such as Node.js\footnote{https://nodejs.org/} and native application frameworks such as React Native\footnote{https://facebook.github.io/react-native/} and Electron\footnote{https://electron.atom.io/}.
+
+JavaScript is a loosely typed language, meaning that types are checked at runtime, such that . This fact takes away some performance as the program runs. This happens because, the JIT compiler that backs JavaScript in browsers will attempt to derive what types variables and functions have in the running program, in order to make some type-check reducing optimisations, but may end up being wrong and discarding them again~\cite{video:thompson-js-perf-v8-and-wasm}.
 
 \section{User Guide and Examples}
 
@@ -133,14 +149,25 @@ What follows is the planned activities and sources of information.
 
 \section{Testing and Validation}
 
-\section{Peripheral Tooling}
+\section{Peripheral Programs and Tooling}
+This section describes the use of peripheral programs and tooling that assist in, compiling the compiler, or exposing the generated code from compiled MicroC programs.
+
+
 
 \section{Future Extensions}
 
 \subsection{Compiler Optimisations}
 Humans (should) write readable and maintainable code. A computer only cares about operations, and each operation costs some $x$ energy and time. The compiler can perform optimisations to reduce the amount of operations a program needs for some logic to be completed, this machine code reduction positively influences the compiled program, by reducing the energy consumed by a processor running it, and increasing the performance.
 
-\textbf{Peephole optimisation} is a simple technique that consumes few resources and little time. The cause of this is that peephole optimisations only require knowledge of the closest two operations in order to apply reductions. In a forward compiler, it can be added as a pass in the backend compiler, such that when the instruction code is generated, the compiler will run through it again, this time attempting to apply optimisations which attempts to reduce and remove code. For instance, if a function in a program adds two constants together and returns the result, an optimising compiler will reduce the expression to the result of the addition operation, and simply return that: \mintinline{c}{return 7+14; => return 21;}. The logic has not been tampered with, but the function is now an operation cheaper. A more elaborate example can be found below.
+\textbf{Peephole optimisation} is a simple technique that consumes few resources and little time. The cause of this is that peephole optimisations only require knowledge of a few close operations in order to apply reductions.
+
+\begin{SCfigure}[0.5][h]
+\includegraphics[width=0.1\textwidth]{PeepholeOptimisationIllustration}
+\centering
+\caption{A simple function \texttt{optEx} multiplies the input argument with $0$ a few times and then returns the result of an addition. To the right of the function are the compiled and optimised versions of the code in WebAssembly stack machine code.}
+\end{SCfigure}
+
+In a forward compiler, optimising with peephole style optimisations can be added as a pass in the backend compiler, such that when the instruction code is generated, the compiler will run through it again, this time attempting to apply optimisations which attempts to reduce and remove code. For instance, if a function in a program adds two constants together and returns the result, an optimising compiler will reduce the expression to the result of the addition operation, and simply return that: \mintinline{c}{return 7+14; => return 21;}. The logic has not been tampered with, but the function is now an operation cheaper. A more elaborate example can be found below.
 
 \begin{figure}[H]
 \includegraphics[width=0.75\textwidth]{PeepholeOptimisation}
