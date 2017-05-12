@@ -20,4 +20,4 @@ If you dislike Node (or JS), or like Python better, you can also run a web serve
 ## Repository Structure
 * **[micro-wac](./micro-wac)**: contains the source code for the *Micro* C to *W*eb*A*ssembly *C*ompiler.
 * **[wasm-playground](./wasm-playground)**: contains hand-crafted `.wast` samples, their compiled binaries and, for each, a tiny framework to run them in.
-* **[web-backend](./web-backend)**: contains the source code for the back-end web server that exposes the compiler via a simple RESTful API.
+* **[web-backend](./web-backend)**: contains the source code for the back-end web server that exposes the compiler via a simple RESTful API. **This part of the project was discarded in favor of spending more time on the compiler itself. The code that was created is kept for historical reasons.**
