@@ -4,9 +4,16 @@
 \usepackage[utf8]{inputenc}
 \usepackage[hidelinks]{hyperref}
 
-\usepackage[rightcaption]{sidecap}
 \usepackage{graphicx}
 \graphicspath{ {images/} }
+
+\usepackage{floatrow}
+\thisfloatsetup{
+  capposition=beside,
+  capbesideposition={bottom,right},
+  capbesidewidth=.3\textwidth,
+  justification=raggedright
+}
 
 \usepackage{setspace}
 \usepackage{pdfpages}
@@ -161,18 +168,18 @@ Humans (should) write readable and maintainable code. A computer only cares abou
 
 \textbf{Peephole optimisation} is a simple technique that consumes few resources and little time. The cause of this is that peephole optimisations only require knowledge of a few close operations in order to apply reductions.
 
-\begin{SCfigure}[0.5][h]
-\includegraphics[width=0.1\textwidth]{PeepholeOptimisationIllustration}
-\centering
-\caption{A simple function \texttt{optEx} multiplies the input argument with $0$ a few times and then returns the result of an addition. To the right of the function are the compiled and optimised versions of the code in WebAssembly stack machine code.}
-\end{SCfigure}
+\begin{figure}[H]
+	\floatbox{figure}[\FBwidth]{\caption{A simple function \texttt{optEx} multiplies the input argument with $0$ a few times and then returns the result of an addition. To the right of the function are the compiled and optimised versions of the code in WebAssembly stack machine code.}}
+	{\includegraphics[width=0.1\textwidth]{PeepholeOptimisationIllustration}}
+	\centering
+\end{figure}
 
 In a forward compiler, optimising with peephole style optimisations can be added as a pass in the backend compiler, such that when the instruction code is generated, the compiler will run through it again, this time attempting to apply optimisations which attempts to reduce and remove code. For instance, if a function in a program adds two constants together and returns the result, an optimising compiler will reduce the expression to the result of the addition operation, and simply return that: \mintinline{c}{return 7+14; => return 21;}. The logic has not been tampered with, but the function is now an operation cheaper. A more elaborate example can be found below.
 
 \begin{figure}[H]
-\includegraphics[width=0.75\textwidth]{PeepholeOptimisation}
-\centering
-\caption{A simple function \texttt{optEx} multiplies the input argument with $0$ a few times and then returns the result of an addition. To the right of the function are the compiled and optimised versions of the code in WebAssembly stack machine code.}
+	\includegraphics[width=0.75\textwidth]{PeepholeOptimisation}
+	\centering
+	\caption{A simple function \texttt{optEx} multiplies the input argument with $0$ a few times and then returns the result of an addition. To the right of the function are the compiled and optimised versions of the code in WebAssembly stack machine code.}
 \label{fig:peephole-optimisation}
 \end{figure}
 As can be seen in figure~\ref{fig:peephole-optimisation}, only the multiplication expressions are simplified. While peephole optimising, the compiler will not know if it can discard \texttt{a} entirely, as it could be referenced later, and the compiler does not know the value of \texttt{x}, nor what \texttt{a} contains anymore (we can see that it is equal to $0$, but our brains collect a lot of state regarding the program at hand, which allows us to deduce this), therefore, nothing can be optimised at the end of the function. Running a more complex and stateful optimisation technique could detect more redundant code, but such an optimisation is more resource- and time consuming.
