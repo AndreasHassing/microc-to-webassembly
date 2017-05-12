@@ -178,14 +178,14 @@ and cExpr varEnv funEnv = function
                                @ [SELECT]
   | CstI i                  -> [I32_CONST i]
   | Prim1 (op, exp) ->
-      cExpr varEnv funEnv exp
+    cExpr varEnv funEnv exp
     @ (match op with
        | "!"      -> [I32_EQZ]
        | "printi"
        | "printc" -> [CALL (getFunId op funEnv)]
        | _        -> failwith (sprintf "unknown prim1 operator: %s" op))
   | Prim2 (op, exp1, exp2) ->
-      cExpr varEnv funEnv exp1
+    cExpr varEnv funEnv exp1
     @ cExpr varEnv funEnv exp2
     @ (match op with
        | "+"  -> [I32_ADD]
@@ -401,9 +401,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   let importSectMapper (fieldName, id) =
     let importNameAsBytes = strToBytes "imports"
     let fieldNameAsBytes = strToBytes fieldName
-    // TODO: allow import of global variables.
-    //       requires updating the import compilation fold function
-    //       and extending of the abstract syntax, the lexer and parser.
+    // XXX: allow import of global variables.
+    //      requires updating the import compilation fold function
+    //      and extension of the abstract syntax, the lexer and parser.
     let importKind = 0x00uy // 0x00 = function extern type
     let importFunctionSignatureIndex = i2leb id
     i2leb (importNameAsBytes.Length) @ importNameAsBytes
