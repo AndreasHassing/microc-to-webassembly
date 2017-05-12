@@ -32,6 +32,7 @@
    are stack allocated: variables, function parameters and arrays.
 *)
 
+/// Wasmcomp contains functions to compile a MicroC program (as an AST) to a WebAssembly binary.
 module MicroWac.Wasmcomp
 
 open Absyn
@@ -42,30 +43,56 @@ open System.Text.RegularExpressions
 open WasmMachine
 
 //#region Environment types
+/// FunEnv is a function environment that contains the ID's of functions (lookup by name),
+/// a list of unique function types (signatures) and all function declarations.
 type FunEnv = { Ids:   Map<string, int>;
                 Types: Map<(Typ option * Typ list), int>;
                 Decs:  Map<int, Topdec>; }
 
+/// GloVar is a global variable. A global variable has an absolute address
+/// in linear memory, and a type.
 type GloVar = { Addr: int; Type: Typ; }
+
+/// ArgVar is a function argument variable. A argument variable has an ID and a type.
 type ArgVar = { Id: int; Type: Typ; }
+
+/// LocVar is a local variable, stored in linear memory. It has an address,
+/// an offset (each function offset is equal to the address of the next free piece of memory),
+/// a type, a depth (to ensure consistent scoping) and a boolean,
+/// indicating whether the variable is in scope or not.
 type LocVar = { Addr: int; Offset: int; Type: Typ; Depth: int; InScope: bool; }
 
+/// Var is a discriminated union type that encapsulates the differently
+/// behaving variable types.
+///
+/// Note to OO devs: it's sort of like an abstract class, only better ;-).
 type Var =
   | GloVar of GloVar
   | ArgVar of ArgVar
   | LocVar of LocVar
 
+/// VarOp is a variable operation which can be either:
+/// Setting a variable to the result of some expression,
+/// and getting the value or address of a variable.
 type VarOp =
   | Set of Expr
   | GetValue
   | GetAddr
 
+/// VarEnv is a variable environment that stores state regarding the variables
+/// in a function, the next free argument ID (used for local argument variables),
+/// the next free address and current offset (used for variables in linear memory).
+///
+/// Also keeps track of the current depth, to ensure that scopes do not bleed into eachother.
 type VarEnv = { Vars: (string * Var) list;
                 NextFreeArgId: int;
                 NextFreeAddress: int;
                 CurrentOffset: int;
                 CurrentDepth: int; }
 
+/// lookup finds variables that are in scope. Looks through
+/// the latest declared local variables, then the function arguments and then
+/// the global variables, in that order.
 let rec lookup env depth x =
   match env with
   | []         -> failwith (sprintf "%s not found" x)
@@ -78,6 +105,9 @@ let rec lookup env depth x =
 //#endregion
 
 //#region Local and Global variable helper functions
+/// varWidth returns the apt width of a variable type, as needed when
+/// allocating variables. Chars are 1 byte wide, arrays are
+/// <their type width> * <their length> wide, and anything else is 4 bytes.
 let rec varWidth = function
   | TypC            -> 1
   | TypA (typ, num) -> if num.IsSome && num.Value > 0
@@ -85,25 +115,40 @@ let rec varWidth = function
                        else varWidth typ
   | _               -> 4
 
+/// varAssOp takes a boolean for whether the variable is a function argument
+/// (as some special rules apply to those) and the type of the variable.
+/// It returns an access instruction code that is missing its immediate (index or offset).
+/// Used to generate variable accesses on arbitrary variable types.
 let rec varAccOp isFunArg = function
   | _ when isFunArg -> GET_LOCAL
   | TypC            -> I32_LOAD8_U
   | TypA (typ, _)   -> varAccOp isFunArg typ
   | _               -> I32_LOAD
 
+/// varAssOp takes a boolean for whether the variable is a function argument
+/// (as some special rules apply to those) and the type of the variable.
+/// It returns an assignment instruction code that is missing its immediate (index or offset).
+/// Used to generate variable assignments on arbitrary variable types.
 let rec varAssOp isFunArg = function
   | _ when isFunArg -> SET_LOCAL
   | TypC            -> I32_STORE8
   | TypA (typ, _)   -> varAssOp isFunArg typ
   | _               -> I32_STORE
 
+/// updateNextFreeAddress takes the type of the allocated variable
+/// and a variable environment. It returns an environment with
+/// the next free address variable updated.
 let updateNextFreeAddress allocdTyp varEnv =
   { varEnv with NextFreeAddress = varEnv.NextFreeAddress + (varWidth allocdTyp) }
 
+/// allocateGloVar allocates a global variable in linear memory, then returns the
+/// given variable environment with the next free address variable updated.
 let allocateGloVar varEnv name typ =
   let gloVar = GloVar { Addr = varEnv.NextFreeAddress; Type = typ; }
   updateNextFreeAddress typ { varEnv with Vars = (name, gloVar) :: varEnv.Vars; }
 
+/// allocateLocVar allocates a local variable in linear memory, then returns the
+/// given variable environment with the next free address variable updated.
 let allocateLocVar varEnv name typ =
   let locVar = LocVar { Addr = varEnv.NextFreeAddress;
                         Offset = varEnv.CurrentOffset;
@@ -114,6 +159,7 @@ let allocateLocVar varEnv name typ =
 //#endregion
 
 //#region Function declaration helper functions
+/// getFunSig returns the function signature of some function declaration or signature.
 let getFunSig f =
   let getArgTypes types (typ, _) = typ :: types
   match f with
@@ -121,21 +167,23 @@ let getFunSig f =
   | Fundec(_, retTyp, _, args, _) -> (retTyp, List.fold getArgTypes [] args)
   | _ -> failwith (sprintf "can't get function signature of %A" f)
 
+/// updTypes takes a function declaration or signature and updates the type section of
+/// a given function environment.
 let updTypes func funEnv =
   let funsig = getFunSig func
   if Map.containsKey funsig (funEnv.Types)
   then funEnv
   else { funEnv with Types = Map.add funsig (Map.count funEnv.Types) funEnv.Types }
 
+/// getFunId returns a function ID by name in a given function environment.
 let getFunId name funEnv =
   Map.find name funEnv.Ids
 
+/// getFunDec returns a function declaration by function ID in a given function environment.
 let getFunDec funId funEnv =
   Map.find funId funEnv.Decs
 //#endregion
 
-/// Get the keys of a map, as a sequence.
-let mapKeys map = map |> Map.toSeq |> Seq.map fst
 /// Get the values of a map, as a sequence.
 let mapValues map = map |> Map.toSeq |> Seq.map snd
 
@@ -146,6 +194,11 @@ let shallow varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth - 1 }
 /// deepen increases the current depth of the variable environment.
 let deepen varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth + 1 }
 
+/// accessVar compiles the access of a MicroC variable to instruction codes.
+/// Specific variable behavior (getting the value of, getting the the address of or
+/// setting the value of) is defined by the caller in `op`.
+///
+/// XXX: this is probably the least clean piece of code in the project - if work is continued, put the effort here first
 let rec accessVar varEnv funEnv op = function
   | AccVar x ->
     let var = lookup varEnv.Vars varEnv.CurrentDepth x
@@ -310,6 +363,9 @@ and cStmt varEnv funEnv = function
                          // step up the depth after the block
                          let shallowerVarEnv = shallow deeperVarEnv
                          shallowerVarEnv, code
+
+/// cProgram consumes an MicroC abstract syntax tree and outputs a function environment,
+/// a variable environment, imports, exports and the instruction codes of functions.
 let cProgram (Prog topdecs) =
   let emptyFunEnv = { Ids = Map.empty; Types = Map.empty; Decs = Map.empty; }
   let emptyVarEnv = { Vars = [];
@@ -323,12 +379,14 @@ let cProgram (Prog topdecs) =
                 :: Funsig(true, None, "printc", [(TypC, "c")])
                 :: topdecs
 
+  /// typeFolder can be used to get unique function signatures in the program.
   let typeFolder funEnv = function
     | Funsig _
     | Fundec _ as f -> updTypes f funEnv
     | _             -> funEnv
   let funEnv = List.fold typeFolder emptyFunEnv topdecs
 
+  /// importsFolder can be used to get imports described in the program.
   let importsFolder (funEnv, imports) = function
     | Funsig(imported, _, name, _) as f when imported ->
       let funId = Map.count funEnv.Ids
@@ -338,6 +396,8 @@ let cProgram (Prog topdecs) =
     | _ -> funEnv, imports
   let funEnv, imports = List.fold importsFolder (funEnv, Map.empty) topdecs
 
+  /// envFolder can be used to get function declarations and allocated global variables.
+  /// These can then be used to look up functions and globals with their names.
   let envFolder (varEnv, funEnv) = function
     | Fundec(_, _, name, _, _) as f ->
       let funId = Map.count funEnv.Ids
@@ -347,6 +407,7 @@ let cProgram (Prog topdecs) =
     | _ -> varEnv, funEnv
   let varEnv, funEnv = List.fold envFolder (emptyVarEnv, funEnv) topdecs
 
+  /// exportFolder can be used to get exports described in the program.
   let exportFolder topdec exports =
     match topdec with
     | Fundec(exported, _, name, _, _) as f when exported ->
@@ -354,6 +415,8 @@ let cProgram (Prog topdecs) =
     | _ -> exports
   let exports = List.foldBack exportFolder topdecs Map.empty
 
+  /// funCodeFolder can be used to get isolated variable environments and
+  /// compiled instruction codes for each function.
   let funCodeFolder topdec (varEnvs, code, offset) =
     match topdec with
     | Fundec(_, _, _, args, block) as f ->
@@ -376,9 +439,13 @@ let cProgram (Prog topdecs) =
                                              |> List.ofSeq) ([], [], varEnv.NextFreeAddress)
   funEnv, varEnvs, imports, exports, funCode
 
+/// Convert instructions to bytes.
 let code2bytes code =
   List.foldBack emitbytes code []
 
+/// Compile a WASM binary from a C program located at fileName.
+/// Specifically designed to get the output of a program compiler which yields
+/// a function environment, a variable environment, imports, exports and function code.
 let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   // open binary file stream
   let writer filename = new BinaryWriter(File.Open(filename, FileMode.Create))
@@ -454,7 +521,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
   //#endregion
 
   //#region Global section [6]
-  // XXX: removed after globals were moved to the linear memory
+
+  // XXX: removed after globals were moved to linear memory
+
   //#endregion
 
   //#region Export section [7]
@@ -494,10 +563,9 @@ let compileWasmBinary fileName (funEnv, varEnvs, imports, exports, funCode) =
     writeSection CODE codeSectionData
   //#endregion
 
+/// Generate a HTML template for the compiled .wasm file.
 let generateHtml (wasmFileName : string) =
-  // not using app.config, as it still won't give us the path of the
-  // actual application. not using an installer which would allow
-  // keys containing static locations of template file.
+  // grab the location of the running compiler .exe to find the WasmBootstrapTemplate
   let microWacPath = Reflection.Assembly.GetEntryAssembly().Location
   let wasmBootstrapTemplatePath = Path.Combine((Path.GetDirectoryName microWacPath), "WasmBootstrapTemplate.html")
   let wasmTemplate =
@@ -508,6 +576,7 @@ let generateHtml (wasmFileName : string) =
   let htmlFileName = (Path.GetFileNameWithoutExtension wasmFileName) + ".html"
   File.WriteAllLines(htmlFileName, wasmTemplate)
 
+/// Compile a MicroC program (as an AST) to a .wasm file.
 let compileToFile fileName program withHtml =
   (cProgram >> compileWasmBinary fileName) program
   if withHtml then generateHtml fileName

@@ -3,7 +3,7 @@
    sestoft@itu.dk 2009-09-25
 
    Extended by abhn@itu.dk in 2017 (Andreas Bjørn Hassing Nielsen)
-   - Add Funsig and allow export of Fundec's (for WASM exportability).
+   - Add Funsig imports and allow export of Fundec's (for WASM import/export).
 
    Must precede Wasmcomp.fs in Solution Explorer
  *)
