@@ -71,25 +71,31 @@ let rec lookup env depth x =
   | []         -> failwith (sprintf "%s not found" x)
   | (y, v)::yr -> if x=y then
                     match v with
-                    | LocVar lv when lv.Depth > depth || not lv.InScope -> lookup yr depth x
+                    | LocVar lv when lv.Depth > depth || not lv.InScope ->
+                      lookup yr depth x
                     | _ -> v
                   else lookup yr depth x
 //#endregion
 
 //#region Local and Global variable helper functions
-let varWidth = function
-  | TypC -> 1
-  | _    -> 4
+let rec varWidth = function
+  | TypC            -> 1
+  | TypA (typ, num) -> if num.IsSome && num.Value > 0
+                       then varWidth typ * num.Value
+                       else varWidth typ
+  | _               -> 4
 
-let varAccOp isFunArg = function
+let rec varAccOp isFunArg = function
   | _ when isFunArg -> GET_LOCAL
-  | TypC -> I32_LOAD8_U
-  | _    -> I32_LOAD
+  | TypC            -> I32_LOAD8_U
+  | TypA (typ, _)   -> varAccOp isFunArg typ
+  | _               -> I32_LOAD
 
-let varAssOp isFunArg = function
+let rec varAssOp isFunArg = function
   | _ when isFunArg -> SET_LOCAL
-  | TypC -> I32_STORE8
-  | _    -> I32_STORE
+  | TypC            -> I32_STORE8
+  | TypA (typ, _)   -> varAssOp isFunArg typ
+  | _               -> I32_STORE
 
 let updateNextFreeAddress allocdTyp varEnv =
   { varEnv with NextFreeAddress = varEnv.NextFreeAddress + (varWidth allocdTyp) }
@@ -144,7 +150,8 @@ let rec accessVar varEnv funEnv op = function
   | AccVar x ->
     let var = lookup varEnv.Vars varEnv.CurrentDepth x
     match var with | LocVar lv -> match op with
-                                  | GetValue -> [I32_CONST lv.Addr; varAccOp false lv.Type lv.Offset]
+                                  | GetValue -> match lv.Type with | TypA _ -> [I32_CONST (lv.Addr + lv.Offset)]
+                                                                   | _ -> [I32_CONST lv.Addr; varAccOp false lv.Type lv.Offset]
                                   | GetAddr  -> [I32_CONST (lv.Addr + lv.Offset)]
                                   | Set exp  -> I32_CONST lv.Addr
                                                 :: cExpr varEnv funEnv exp
@@ -152,22 +159,34 @@ let rec accessVar varEnv funEnv op = function
                    | ArgVar av -> match op with
                                   | GetValue -> [varAccOp true av.Type av.Id]
                                   | GetAddr  -> match av.Type with
-                                                | TypP _ -> [varAccOp true av.Type av.Id]
-                                                | _      -> failwith (sprintf "can't get address of function argument %A" av)
+                                                | TypP _        -> [varAccOp true av.Type av.Id]
+                                                | TypA (typ, _) -> [varAccOp true typ av.Id]
+                                                | _ -> failwith (sprintf "can't get address of non-pointer function argument %A" av)
                                   | Set exp  -> cExpr varEnv funEnv exp @ [varAssOp true av.Type av.Id]
-                   | GloVar gv -> match op with
-                                  | GetValue -> [I32_CONST gv.Addr; varAccOp false gv.Type 0]
-                                  | GetAddr  -> [I32_CONST gv.Addr]
-                                  | Set exp  -> I32_CONST gv.Addr
-                                                :: cExpr varEnv funEnv exp
-                                                @ [varAssOp false gv.Type 0]
-  | AccDeref exp -> match op with
-                    | GetValue -> cExpr varEnv funEnv exp @ [varAccOp false TypI 0]
-                    | GetAddr  -> cExpr varEnv funEnv exp
-                    | Set expS -> cExpr varEnv funEnv exp
-                                  @ cExpr varEnv funEnv expS
-                                  @ [varAssOp false TypI 0]
-  | AccIndex (acc, exp) -> failwith "compilation of arrays has not been implemented"
+                   | GloVar gv -> I32_CONST gv.Addr
+                                  :: match op with
+                                     | GetValue -> match gv.Type with | TypA _ -> []
+                                                                      | _ -> [varAccOp false gv.Type 0]
+                                     | GetAddr  -> []
+                                     | Set exp  -> cExpr varEnv funEnv exp
+                                                   @ [varAssOp false gv.Type 0]
+  | AccDeref exp -> cExpr varEnv funEnv exp
+                    @ match op with
+                      // XXX: chars can't get dereferenced
+                      | GetValue -> [varAccOp false TypI 0]
+                      | GetAddr  -> []
+                      | Set expS -> cExpr varEnv funEnv expS
+                                    @ [varAssOp false TypI 0]
+  | AccIndex (acc, exp) -> accessVar varEnv funEnv GetAddr acc
+                           @ cExpr varEnv funEnv exp
+                           // XXX: char's cant be used as arrays
+                           @ [I32_CONST 4; I32_MUL]
+                           @ [I32_ADD]
+                           @ match op with
+                             | GetValue -> [varAccOp false TypI 0]
+                             | GetAddr  -> []
+                             | Set expS -> cExpr varEnv funEnv expS
+                                           @ [varAssOp false TypI 0]
 and cExpr varEnv funEnv = function
   | Access acc              -> accessVar varEnv funEnv GetValue acc
   | Assign (acc, exp)       -> accessVar varEnv funEnv (Set exp) acc
