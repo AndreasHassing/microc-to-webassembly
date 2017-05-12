@@ -1,11 +1,16 @@
 // micro-C example 21 -- tail call optimization is unsound
+// PASSES
 
-void main() { 
+void main() {
   int a[10];
   a[1] = 117;
   f(1, a);
 }
 
 void f(int i, int a[]) {
-  print a[i]; 
+  print a[i];
+}
+
+void start() {
+	main();
 }

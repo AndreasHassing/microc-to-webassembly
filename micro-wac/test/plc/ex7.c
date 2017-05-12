@@ -1,4 +1,8 @@
 // micro-C example 7 -- an infinite loop
+// PASSES (but stalls the browser, obviously)
+// To kill this example in Chrome: open your task
+// manager and kill the Chrome thread that is using 100%
+// of a single core.
 
 void main()
 {

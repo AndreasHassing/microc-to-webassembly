@@ -13,3 +13,7 @@ void main(int n) {
 int leapyear(int y) {
   return y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
 }
+
+void start() {
+	main(1900);
+}

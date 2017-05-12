@@ -4,15 +4,18 @@
 // Finding the 724 solutions to the 10 queens problem takes 6-7
 // seconds on a 1.6 GHz Pentium M.
 
-// Running this micro-C program, when compiled to bytecode: 
+// Running this micro-C program, when compiled to bytecode:
 // Finding the 724 solutions to the 10 queens problem takes 0.6
 // seconds with an abstract machine implemented in Java and executed
-// on Sun JDK 1.5 Hotspot on a 1.6 GHz Pentium M running Windows XP.  
+// on Sun JDK 1.5 Hotspot on a 1.6 GHz Pentium M running Windows XP.
 // It takes 0.2 seconds with an abstract machine implemented in C
 // and executed on a 1.86 GHz Intel Xeon running Linux.
 
+// FAILS: A store is attempted when the stack is empty.
+// Didn't manage to debug this problem.
+
 void main(int n) {
-  int i; 
+  int i;
   int u;
   int used[100];
   int diag1[100];
@@ -37,16 +40,16 @@ void main(int n) {
       while (u <= n && (used[u] || diag1[u-i+n] || diag2[u+i]))
 	u = u + 1;
       if (u <= n) { // not used[u]; fill col[i] then try col[i+1]
-	col[i] = u; 
-	used[u] = diag1[u-i+n] = diag2[u+i] = true; 
+	col[i] = u;
+	used[u] = diag1[u-i+n] = diag2[u+i] = true;
 	i = i+1; u = 1;
       } else {			// backtrack; try to find a new col[i-1]
 	i = i-1;
-	if (i > 0) { 
-	  u = col[i]; 
-	  used[u] = diag1[u-i+n] = diag2[u+i] = false; 
+	if (i > 0) {
+	  u = col[i];
+	  used[u] = diag1[u-i+n] = diag2[u+i] = false;
 	  u = u+1;
-	} 
+	}
       }
     }
 
@@ -54,16 +57,20 @@ void main(int n) {
       int j;
       j = 1;
       while (j <= n) {
-	print col[j];  
+	print col[j];
 	j = j+1;
       }
       println;
-      i = i-1; 
-      if (i > 0) { 
-	u = col[i]; 
-	used[u] = diag1[u-i+n] = diag2[u+i] = false; 
+      i = i-1;
+      if (i > 0) {
+	u = col[i];
+	used[u] = diag1[u-i+n] = diag2[u+i] = false;
 	u = u+1;
       }
     }
   }
+}
+
+void start() {
+	main(10);
 }

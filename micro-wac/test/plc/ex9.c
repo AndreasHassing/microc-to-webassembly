@@ -1,4 +1,5 @@
 // micro-C example 9 -- return a result via a pointer argument
+// PASSES
 
 void main(int i) {
   int r;
@@ -15,4 +16,8 @@ void fac(int n, int *res) {
     fac(n-1, &tmp);
     *res = tmp * n;
   }
+}
+
+void start() {
+	main(5);
 }

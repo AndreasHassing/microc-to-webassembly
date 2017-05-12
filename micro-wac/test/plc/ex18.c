@@ -1,4 +1,5 @@
 // micro-C example 18 -- if within if
+// PASSES (it does not print anything on purpose (for m = 0 and n = 3))
 
 void main(int m, int n) {
   if (m == 0) {
@@ -8,13 +9,17 @@ void main(int m, int n) {
     print 3333;
 }
 
+void start() {
+	main(0, 3);
+}
+
 /*
 Old forwards compiler:
 
      GETBP, 0, ADD, LDI, 0, EQ, IFZERO L2,              m == 0
      GETBP, 1, ADD, LDI, 0, EQ, IFZERO L4,              n == 0
      1111, PRINTI, INCSP ~1, GOTO L5,                   print 1111
- L4: INCSP 0, 
+ L4: INCSP 0,
  L5: INCSP 0, GOTO L3,
  L2: 3333, PRINTI, INCSP ~1,                            print 3333
  L3: INCSP 0, RET 1

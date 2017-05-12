@@ -1,4 +1,5 @@
 // micro-C example 8 -- loop 20 million times
+// PASSES
 
 void main() {
   int i;
@@ -6,4 +7,9 @@ void main() {
   while (i) {
     i = i - 1;
   }
+	print 999999;
+}
+
+void start() {
+	main();
 }

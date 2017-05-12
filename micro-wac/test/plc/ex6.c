@@ -1,4 +1,5 @@
 // micro-C example 6 -- return a result via a pointer argument; nested blocks
+// PASSES
 
 void main(int n) {
   int i;
@@ -20,4 +21,8 @@ void fac(int n, int *res) {
     fac(n-1, &tmp);
     *res = tmp * n;
   }
+}
+
+void start() {
+	main(5);
 }

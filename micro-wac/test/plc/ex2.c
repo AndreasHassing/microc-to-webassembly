@@ -1,4 +1,6 @@
 // micro-C example 2
+// FAILS - Passes until line 27 where an integer
+// offset is used to alter the address.
 
 void main() {
   int *p;                               // pointer to int
@@ -21,7 +23,7 @@ void main() {
   print *p;                             // 12
   p = ia;                               // now p points to ia[0]
   *ia = 14;                             // now ia[0] is 14
-  print ia[0];                          // 14              
+  print ia[0];                          // 14
   *(ia+9) = 114;                        // now ia[9] is 114
   print ia[9];                          // 114
   ipa[2] = p;                           // now ipa[2] points to i
@@ -29,4 +31,8 @@ void main() {
   print (&*ipa[2] == &**(ipa+2));       // 1 (true)
   iap = &ia;                            // now iap points to ia
   print (&(*iap)[2] == &*((*iap)+2));   // 1 (true)
+}
+
+void start() {
+	main();
 }
