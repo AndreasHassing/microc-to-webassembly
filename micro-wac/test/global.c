@@ -9,3 +9,7 @@ export int returnGlobalInteger()
 {
 	return globalInteger;
 }
+
+void start() {
+	changeGlobalInteger(42);
+}
