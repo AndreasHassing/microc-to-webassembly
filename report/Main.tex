@@ -21,11 +21,11 @@
 \begin{comment}
 function BibTeX() {
 	let subject = document.title.replace(/ - WebAssembly/, '').replace(' ', '-').toLowerCase();
-    return `@misc{website:wasm-${subject}
+    return `@misc{website:wasm-${subject},
 	author = "The WebAssembly working group",
 	title = {{${document.title}}},
-	url = "${document.URL}",
-	note = {Online; accessed 12 May 2017},
+	howpublished = "${document.URL}",
+	note = {Online; accessed 13 May 2017},
 }`;
 }
 \end{comment}
