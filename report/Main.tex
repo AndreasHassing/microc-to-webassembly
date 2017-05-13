@@ -134,7 +134,7 @@ In a meeting with Niels Hallenberg on May 1st we agreed to discard the web part 
 
 \noindent I do not feel that I have the knowledge required to reflect over the security of WebAssembly. Discussing the portability of WebAssembly also feels a little out of my reach - I can make assumptions about how I fear that later versions of WebAssembly will diverge, in the case that some browser vendors feel that development of the standard is too slow, but in the end I do not feel that this is a very important discussion to have. Instead I have spent some time extending MicroC with \texttt{import} and \texttt{export} keywords, and discuss the implementation of these in section~\ref{sec:technical},~\nameref{sec:technical}.\\
 
-\noindent It is no longer required to set flags in browsers, or use nightly versions in order to run WebAssembly modules.
+\noindent It is no longer required to set flags in browsers, or use nightly browser versions in order to run WebAssembly binaries.
 
 \newpage
 \section{Problem Analysis}
@@ -241,7 +241,7 @@ The S-expression syntax example from section~\ref{sec:problem-analysis:webassemb
 \label{sec:problem-analysis-webassembly:aligning}
 In this section, some discovered misalignments between MicroC and WebAssembly will be discussed and handled.
 
-\noindent \textbf{The builtin print and println functions.} MicroC has two built-in functions: \texttt{print} and \texttt{println}. They are converted to internal \texttt{printi}, and \texttt{printc} functions, that print an integer and a char respectively. \texttt{println} is simply a call to \texttt{printc} with $10$ as an argument (10 is the new line feed character in ASCII). A few ways on how this could be handled in the conversion to WebAssembly comes to mind:
+\noindent \textbf{The builtin print and println functions.} MicroC has two built-in functions: \texttt{print} and \texttt{println}. They are converted to internal \texttt{printi}, and \texttt{printc} functions, that print an integer and a char respectively. \texttt{println} is simply a call to \texttt{printc} with $10$ as an argument (10 is the new line feed character in ASCII\footnote{See http://www.asciitable.com/.}). A few ways on how this could be handled in the conversion to WebAssembly comes to mind:
 \begin{itemize}
 	\item The functions could be hardcoded as imports in the generated module, thus allowing the compiler to stay MicroC compliant, but forcing the user of the module to supply an implemention of the two functions.
 	\item Remove the keywords and functionality from MicroC, and instead implement an \texttt{import} keyword in the compiler, such that function signatures can be specified which could then give the user more power over what kind of functions that must be imported. For instance, \mintinline{c}{import void print(int i);} would require the user of the module to hand an imports object to the module with a print function that takes an integer as argument and returns nothing. This design has a familiar resemblance to prototypes in C.
@@ -392,6 +392,8 @@ A piece of JavaScript code in the HTML file uses the \texttt{fetch} API found in
 To start a web server in the local directory with Node installed, first install \texttt{http-server} globally with: \verb$npm install -g http-server$. Once installed, the server can be started with the command \texttt{http-server} in the directory containing the HTML file(s).
 
 Node may not be readily available, in which case maybe Python is. To start a web server with Python2, run the command \texttt{python -m SimpleHTTPServer}, and for Python3, run the command \texttt{python -m http.server}, no installation is required for either command.
+
+%TODO: add subsection about the run-tests framework found in expected-output
 
 \subsection{Prototyping in F\#}
 \label{sec:peripherals:prototyping}
