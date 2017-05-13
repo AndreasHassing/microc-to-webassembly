@@ -35,6 +35,12 @@ function BibTeX() {
 \newcommand\footnoteref[1]{\protected@xdef\@thefnmark{\ref{#1}}\@footnotemark}
 \makeatother
 
+\makeatletter
+\renewcommand\listoffigures{%
+        \@starttoc{lof}%
+}
+\makeatother
+
 % Code highlighting
 \usepackage{minted}
 % Highlight theme
@@ -71,20 +77,26 @@ function BibTeX() {
 % Bottom of the page
 	{\large \today\par}
 \end{titlepage}
-
 \newpage
 
 \tableofcontents
+
 \newpage
-
-
 \section{Introduction}
 \label{sec:introduction}
 The purpose of this project is to build a compiler, also called a translator, from MicroC to WebAssembly, using FsLexYacc\footnote{\label{footnote:fslexyacc-url}http://fsprojects.github.io/FsLexYacc/} and F\#\footnote{http://fsharp.org/}. The learning goals are to develop an understanding of WebAssembly, and to improve my knowledge of compiler design.
 
-MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.
+MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.\\
 
-\section{Problem Definition}
+This report will give a more in-depth explanation of how the WebAssembly format works, and discuss how a compiler, that goes from a C-like language to this new platform, can be designed.\\
+
+I have previously had experience with compiler design. In the course: "Programs as Data", I extended the MicroC compiler with a handful of features: optimisations in the backwards continuation-based MicroC compiler, more looping constructs, compound assignment operators, increment/decrement operators and more.
+
+While these alterations don't explicitly teach compiler design from-scratch, I had confidence that observing and analysing the behaviour of the pre-defined compiler yielded enough knowledge to get started writing my own.
+
+MicroWac, the name of the MicroC to WebAssembly compiler described in this report, uses the abstract syntax (with some extensions) and the lexer and parser from the original MicroC project by Peter Sestoft. The compiler is written from scratch, as the differences between the MicroC stack machine and WebAssembly binaries are significant.
+
+\section{Background and Problem Definition}
 \label{sec:problem-definition}
 WebAssembly (WASM) is a new up-and-coming binary code format for the user-facing web, designed to work alongside JavaScript as a more portable, size- and load-time-efficient, ahead-of-time-compiled alternative. 
 
@@ -112,53 +124,112 @@ What follows is the planned activities and sources of information.
 	\item Extensions to the MicroC language will be implemented.
 	\item Simple optimizations to the generated WebAssembly code.
 \end{itemize}
-\pagebreak
 
 \subsection{Changes to Method and Problem Definition}
 \label{sec:problem-definition:changes}
 I realized while coding the compiler that I would have to stop working on it prematurely to get the web back- and frontend working as well. This was an underestimation on my part.
 
-In a meeting with Niels Hallenberg on May 1st we agreed to discard the web part of this project. To make up for the loss I have added a flag (\texttt{-html}) to the compiler which generates a HTML template to go along with the \texttt{.wasm} output. The HTML template makes it easy to test compiled WebAssembly binaries, as you can serve the HTML with a simple HTTP server, see section~\ref{sec:peripherals:testing-wasm},~\nameref{sec:peripherals:testing-wasm}, on how to do that.
+In a meeting with Niels Hallenberg on May 1st we agreed to discard the web part of this project. To make up for the loss I have added a flag (\texttt{-html}) to the compiler which generates a HTML template to go along with the \texttt{.wasm} output. The HTML template makes it easy to test compiled WebAssembly binaries, as you can serve the HTML with a simple HTTP server, see section~\ref{sec:peripherals:testing-wasm},~\nameref{sec:peripherals:testing-wasm}, on how to do that.\\
 
+\noindent I do not feel that I have the knowledge required to reflect over the security of WebAssembly. Discussing the portability of WebAssembly also feels a little out of my reach - I can make assumptions about how I fear that later versions of WebAssembly will diverge, in the case that some browser vendors feel that development of the standard is too slow, but in the end I do not feel that this is a very important discussion to have. Instead I have spent some time extending MicroC with \texttt{import} and \texttt{export} keywords, and discuss the implementation of these in section~\ref{sec:technical},~\nameref{sec:technical}.\\
+
+\noindent It is no longer required to set flags in browsers, or use nightly versions in order to run WebAssembly modules.
+
+\newpage
 \section{Problem Analysis}
 \label{sec:problem-analysis}
-In this section, the problem will be dissected and analysed. The definition of a compiler is discussed and the WebAssembly specification and binary encoding is scrutinised.
+In this section, the problem will be dissected and analysed. The definition of a compiler and a stack machine is discussed, and the WebAssembly specification and binary encoding is scrutinised. Some history is also supplied, to help explain the purpose and origin of WebAssembly.
 
 \subsection{Compilers in General}
 \label{sec:problem-analysis:compilers}
-Before the compiler design is even considered, an important question must be asked and answered: "What is a compiler?".
+Before designing a compiler, an important question must be put forth and answered: "What is a compiler?".
 
-According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes the source code of another program as input, usually some higher-level language such as C\#, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#, or binary machine code instructions - in the case of C. There are more low-level representations out in the wild, but these two will be the ones referenced in this report.
+According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes the source code of another program as input, usually some higher-level language such as C\#, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#, or binary machine code instructions - in the case of C. There are more low-level representations out in the wild, but these two will be the ones referenced to in this report.
 
-Many programs are written in higher-level languages that run within an assisting runtime environment and compiles to a variant of bytecode, with an instruction set specified in the virtual machine of the runtime. When the runtime is started and the program bytecode is passed to it, it performs a just-in-time (JIT) compilation to native machine code using the instruction set of the machine's processor. The .NET CLR and Java's JRE are two such runtimes that both support several higher-level languages, such as C\#, F\#, Java and Scala. Runtime environments often come equipped with integrated memory management in the form of a garbage collector.
+Compilers are separated into a frontend and a backend. The frontend is responsible for parsing the code written by a developer and turning it into an abstract syntax. The backend converts the abstract syntax into a format the targeted system can understand. In MicroC, the lexer and parser that are defined in \texttt{CLex.fsl} and \texttt{CPar.fsy} respectively, make up the frontend part of the compiler, whereas \texttt{WasmMachine.fs} and \texttt{Wasmcomp.fs} make up the backend part. Together, the frontend and backend work in tandem to take user-written code as input, and output a program that the machine can run.
 
-Programs written in comparatively lower-level languages, such as C and C++, are usually compiled ahead-of-time (AOT) to native machine code using the instruction set of the compiling machine. One can often configure the compiler to target other operating systems and processor architectures than that of the compiling system. In these lower-level languages, the programmer is often challenged with manually managing dynamic memory.
+The decoupling of the frontend and backend in a compiler yields a great benefit: A new frontend can be added for a backend, thus supporting more languages that compile to the same type of backend, and a new backend can be added to a frontend, such that the compiler supports more systems. If, for instance, we wrote a compiler that compiles from F\# to WebAssembly, we could add an extra frontend that took care of C\# and reuse the backend. This separation is used nicely in the LLVM compiler, which supports many backends and frontends, and defining a target-independent optimiser which can be used across languages and systems\footnote{http://llvm.org/}.\\
 
-Note, that nothing stops us from implementing a runtime environment that supports a high-level language, such as C, which can then run code written in that language as a JIT compiled application. The task may be non-trivial.
+Many programs are written in higher-level languages that run within an assisting runtime environment and compiles to a variant of bytecode, with an instruction set specified in the virtual machine of the runtime. When the runtime is started and the program bytecode is passed to it, it performs a just-in-time (JIT) compilation to native machine code using the instruction set of the machine's processor. .NETs' CLR and Javas' JRE are two such runtimes that both support several higher-level languages, such as C\#, F\#, Java and Scala. Runtime environments often come equipped with integrated memory management in the form of a garbage collector.
 
-Then, there is JavaScript, a loosely typed language that runs in browsers. JavaScript is compiled by a JIT compiler at runtime\footnote{This is not always true. Ignition, a newly developed interpreter for V8 (Chrome's JavaScript engine), is used alone or along with JIT compilation, especially on devices where a lower- memory footprint, or battery usage is beneficial (Smartphones, for instance)~\cite{video:thompson-js-perf-v8-and-wasm}.}, which takes the code, turns it into abstract syntax and then to machine code~\cite[p.~13]{slides:lund-v8}. During the execution of a JavaScript program, the JIT compiler will attempt to optimise the generated machine code by making probabilistic assumptions about program behaviour. These assumptions can eventually fail, thus forcing the JIT to throw away optimisations based on falsified claims - this is a cause of non-deterministic execution speed of JavaScript programs. The JIT's that are found in modern browsers make a lot of intelligent optimisations on what is generally referred to as \texttt{warm} and \texttt{hot} code paths\footnote{Warm and hot code describes code paths that are executed regularly and often, respectively.}, thereby greatly increasing performance without sacrificing excessive resources. When a JIT compiler is run on a system with multiple processor cores, it can run in parallel, thereby generating optimisations without blocking the main thread of the program.
+Programs written in comparatively lower-level languages, such as C and C++, are usually compiled ahead-of-time (AOT) to native machine code using the instruction set of the compiling machine. One can often configure the compiler to target other operating systems and processor architectures than that of the compiling system. In these lower-level languages, the developer is often challenged with manually managing dynamic memory. In C, this means using \texttt{malloc} and \texttt{free} for allocation and deallocation of memory while the program is running.
 
-\subsubsection{Benefits of AOT Compilation}
+Note, that nothing stops us from implementing a runtime environment that supports a language which is usually AOT compiled, such as C. Such a runtime environment can then execute code written in that language as a JIT compiled application. With C, this task is most likely non-trivial.
+
+\subsubsection{Benefits of AOT- over JIT Compilation}
 \label{sec:problem-analysis:benefits-of-aot}
-\textbf{Static Type Checking} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking happens late, and errors that didn't show during development, can show up in the users browser.\\
+\textbf{Type Safety} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking occurs at runtime, and errors that didn't show during development, can show up in the users browser.\\
 
-\noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare, to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process. This makes an AOT compiler preferred for live and runtime critical systems.
+\noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process. This makes an AOT compiler preferred for live and runtime critical systems - as execution is deterministic.
+
+\subsection{Stack Machines}
+Stack machines implement some derived behaviour of what is known as the abstract stack machine. The stack machine executes code by pushing values onto- and popping values off a stack data structure, hence the name. The instructions are added to the stack using reverse polish notation, also called postfix notation. This notation works by turning infix operators into postfix, for instance: \mintinline{fsharp}{3 + 4} becomes \mintinline{fsharp}{3 4 (+)}. The machine keeps popping the top element on the stack to figure out what to do next.
+
+Specific implementations of stack machines have a set of instruction codes that can be used. For instance, the WebAssembly stack machine has the \texttt{i32.add} instruction code, which, when popped, pops two operand values off the stack, adds them together and pushes the result back onto the stack. Several arithmetic-, logic- and other instruction codes are available in the WebAssembly stack machine~\cite{website:wasm-binary-encoding}.
+
+Most computers aren't pure stack machines, but some derived combination of a stack machine, a register machine (which uses registers to store operands and intermediate values) and possibly other machine types. As such, a stack machine can be thought of as an abstraction on top of the machine architecture.
+
+Assembly language (not WebAssembly) is the closest, somewhat sane, code representation we have to code directly against the central processing unit. This language uses reverse polish notation, just like a stack machine, and utilises registers that are closer to the central processing unit than random access memory. When a browser compiles WebAssembly (which does not use registers), registers are used, and disassembling the LLVM output of a WebAssembly compilation done by browsers\footnote{The tool that enables this level of inspection: https://mbebenita.github.io/WasmExplorer/} proves this\footnote{WasmExplorer used to compile a simple C program to WebAssembly, then to LLVM x86 Assembly: https://goo.gl/nUqTZ1}.
+
+A specific version of the Assembly language exists for each instruction set architecture, but they usually have several similarities. An Assembly language exists which attempt to support several platforms\footnote{NASM (The Netwide Assembler) is an assembly language that is designed for portability, and can be compiled for execution on multiple operating systems and processor architectures (x86/x86-64): http://www.nasm.us/}.
 
 %TODO: add more to AOT benefits?
 %TODO: add JIT benefits?
-
+\newpage
 \subsection{History of Web Coding}
 \label{sec:problem-analysis:history}
 Less than a year ago there was only 1 language that could run natively in all browsers: JavaScript. The web is built around it, and the language has flourished and expanded beyond the land of browsers, in the form of execution environments such as Node.js\footnote{https://nodejs.org/} and native application frameworks such as React Native\footnote{https://facebook.github.io/react-native/} and Electron\footnote{https://electron.atom.io/}.
 
-% TODO: This is rubbish. Redo!
-JavaScript is a loosely typed language, which means that types are not checked at compile time, actually, JavaScript is not compiled by the developer at all. The runtime type checks are not too problematic for simple programs running in the browser, but it scales, and with larger applications the checks can be devastating to performance. A JIT compiler in the execution environment will attempt to derive what types variables and functions have in the running program, in order to make some type-check reducing optimisations, but may end up being wrong and discarding them again~\cite{video:thompson-js-perf-v8-and-wasm}. % TODO: is this citation correct?
+Attempts have been made to make JavaScript run faster, but ultimately no standards other than WebAssembly caught on. One of the more popular attempts is asm.js\footnote{http://asmjs.org/spec/latest/}. asm.js is a subset of JavaScript, with tooling that allows for source-to-source compilation from languages such as C and C++ to asm.js. The subset allows static type checking by browsers that implement a specific parser for asm.js. Drafted in 2014 - asm.js yielded good results\footnote{http://asmjs.org/faq.html}, but work on the format seems to have shifted to WebAssembly, due to the large size of compiled code bases (non-binary). The binary WebAssembly format is much smaller, and can be compressed even more than the code yielded by asm.js, furthermore parsing of binary data is significantly faster than that of strings, thus decreasing the time-to-execution of compiled WebAssembly modules versus asm.js code.
+
+\subsubsection{JavaScript}
+JavaScript is a loosely typed language that runs in browsers. The JavaScript code created by a software developer needs to be sent via a server to the visitors browser, the code will then execute immediately.
+
+JavaScript is compiled by a JIT compiler at runtime\footnote{This is not always true. Ignition, a newly developed interpreter for V8 (Chrome's JavaScript engine), is used alone or along with JIT compilation, especially on devices where a lower- memory footprint, or battery usage is preferred over high performance (Smartphones, for instance)~\cite{video:thompson-js-perf-v8-and-wasm}.}, which takes the code, converts it into abstract syntax and then to machine code~\cite[p.~13]{slides:lund-v8}. During the execution of a JavaScript program, the JIT compiler will attempt to optimise the generated machine code by making probabilistic assumptions about program behaviour. These assumptions can eventually fail, thus forcing the JIT to throw away optimisations based on falsified claims - this is a cause of non-deterministic execution speed of JavaScript programs. The JIT's that are found in modern browsers make a lot of intelligent optimisations on what is generally referred to as \texttt{warm} and \texttt{hot} code paths\footnote{Warm and hot code describes code paths that are executed regularly and often, respectively.}, thereby greatly increasing performance without sacrificing excessive resources. When a JIT compiler is run on a system with multiple processor cores, it can run in parallel, thereby generating optimisations without blocking the main thread of the browser.
 
 \subsection{WebAssembly}
 \label{sec:problem-analysis:webassembly}
-WebAssembly is created to work well together with JavaScript. This is easily deduced from looking at the design of the binary and textual representation of WebAssembly. Code compiled to WASM are turned into modules that can be instantiated from within JavaScript, and WebAssembly modules can selectively describe which components to expose to- and import from JavaScript.
+WebAssembly can be expressed using two formats: a binary syntax that can be executed in browsers (and Node.js behind a flag: \texttt{--expose-wasm}), and a textual representation called the S-expression syntax.
 
-Exported and imported components from and to WASM can be: functions, variables and memory segments. This design allows WASM modules to make use of dependency injections, which can assist in decoupling code and separating implementation concerns.
+The binary syntax contains a magic number which states that the module is WebAssembly and the version number of the binary. Then follows a number of sections that describe the intricacies of the module. The binary module is described in more detail in section~\ref{sec:problem-analysis:webassembly:binary},~\nameref{sec:problem-analysis:webassembly:binary}.
+
+Binary files are not readable to the human eye, so S-expressions is also available. The S-expression syntax for WebAssembly was described in order to keep the "View Source" functionality of the Web\footnote{You can view the source code of any JavaScript code running in your browser by right-clicking a website. The WebAssembly working group wishes to keep this tradition with WebAssembly~\cite{website:wasm-webassembly-high-level-goals}.}.
+
+The WebAssembly Working group has designed WABT\footnote{https://github.com/WebAssembly/wabt/} (WebAssembly Binary Toolkit), a toolkit that allows bidirectional translation between the binary syntax and the S-expression syntax. Browsers could use this toolkit, or a functionally equivalent derivative, to translate binaries to the S-expression syntax, such that viewing the source of WebAssembly binaries on arbitrary websites becomes easy.
+
+WebAssembly is designed to work well together with JavaScript~\cite{website:wasm-webassembly-high-level-goals}. This can be deduced without looking at the goals of WebAssembly, by inspecting the design of the binary- and textual representation of WebAssembly. Code compiled to WASM are turned into modules that can be instantiated from JavaScript, and WebAssembly modules can selectively describe which components to expose to- and import from JavaScript.
+
+Exported and imported components from and to WASM can be of types: functions, variables and memory segments. This design allows WASM modules to make use of dependency injections, which can assist in decoupling code and separating implementation concerns.
+
+\subsubsection{The S-expression Syntax}
+\label{sec:problem-analysis:webassembly:s-exp}
+The S-expression syntax is easily explained with an example:
+\begin{minted}[tabsize=2]{javascript}
+(module
+  (func $printi (import "imports" "printi") (param i32))
+  (func $start
+    (local i32)
+    i32.const 5
+    i32.const 3
+    i32.add
+    set_local 0
+    get_local 0
+    call $printi
+  )
+  (start $start)
+)
+\end{minted}
+The code above describes a module. Within that module are functions \texttt{printi} and \texttt{start}. The \texttt{printi} function is imported from an object named \texttt{imports} and a field within that object named \texttt{printi}, it takes a single 32-bit integer as parameter. The \texttt{start} function declares a local 32-bit integer variable. Note that local variables need to be declared at the top of a function, this behaviour is even more strict than the C89 specification, which allows variable declarations in the top of any block. The function then pushes constant 32-bit integers $5$ and $3$ onto the stack, and then a 32-bit addition operator. The local variable is set to the top value on the stack (the result of the addition) and \texttt{printi} is called, taking the top value on the stack as argument.
+
+A \texttt{start} component dictates which function will run at instantiation-time. Functions must not take any arguments and must not return a value in order to be valid for \texttt{start}. This is in contrast to the typical \texttt{main} entry point function, which usually takes an argument count and a string array of arguments. MicroC uses the \texttt{main} version, so a compromise must be thought up to allow running MicroC programs at instantiation-time.
+
+The \texttt{printi} function needs to be injected into the module from within the browser. This yields a freedom to the developer, offering the opportunity to easily change behaviour of WebAssembly modules. For instance, if a WebAssembly module imports some logging function, the developer can hand the module a very verbose logging function in the development environment, and a more quiet logging function in the released environment.
+
+\subsubsection{The Binary Format}
+\label{sec:problem-analysis:webassembly:binary}
+The binary format of WebAssembly modules contains the magic number and several sections that determine the behaviour of the modules.
+
+The S-expression syntax example from section~\ref{sec:problem-analysis:webassembly:s-exp},~\nameref{sec:problem-analysis:webassembly:s-exp} has been compiled to binary format and explained in detail. This binary analysis can be found in~\ref{sec:appendix:wasm-examples:binary-print},~\nameref{sec:appendix:wasm-examples:binary-print}.
 
 \subsubsection{Linear Memory}
 \label{sec:problem-analysis-webassembly:linear-memory}
@@ -217,7 +288,7 @@ What follows are some of the known issues in the compiler:
 
 	\item The code that supports compilation of variable access (the \texttt{varAccess} function in \nameref{sec:appendix:code:Wasmcomp.fs}, lines 202 to 242) is a mess and is not very readable. Not really a bug, but probably the reason behind some.  Unfortunately, due to time constraints, I didn't get to clean it up.
 
-	\item In the original MicroC compiler (written by Peter Sestoft), out of scope variables bleed into other scopes. A test, see \nameref{sec:appendix:code:test-scope.c}, revealed this problem. This issue does not exist in MicroWac by keeping track of the depth of variables, and declaring them as being outside of a scope as soon as the scope ends.
+	\item In the original MicroC compiler (written by Peter Sestoft), variables that are out of scope bleed into other scopes. A test, see \nameref{sec:appendix:code:test-scope.c}, revealed this problem. This issue does not exist in MicroWac, as MicroWac keeps track of the depth of variables, and declares them as being outside of a scope as soon as their enclosed scope ends.
 \end{itemize}
 
 \section{Peripheral Programs and Tooling}
@@ -282,6 +353,7 @@ Peephole optimisations fall short when more elaborate optimisations are needed. 
 
 \section{Conclusion}
 \label{sec:conclusion}
+% Remember to discuss which things went wrong, and why.
 
 \section{References}
 \label{sec:references}
@@ -295,6 +367,76 @@ Peephole optimisations fall short when more elaborate optimisations are needed. 
 \section{Appendix}
 \label{sec:appendix}
 
+\subsection{WebAssembly Examples}
+\label{sec:appendix:wasm-examples}
+
+\subsubsection{Print module compiled to WASM, explained}
+\label{sec:appendix:wasm-examples:binary-print}
+\begin{minted}[tabsize=2,breaklines]{text}
+; Header
+00 61 73 6D                  ; translates to '\0asm', WebAssembly magic number. Exists for quick file type detection.
+01 00 00 00                  ; Version number (1)
+
+; Section "Type" (1)
+01                           ; Section code: 0x01 = Type
+08                           ; Section size: 0x08 bytes (the following 8 bytes are contained within this section)
+02                           ; Number of types in section: 2 types
+; type 0
+60                           ; Type code: 0x60 = function
+01                           ; Number of params: 0x01
+7F                           ; Type of 1st param: 0x7F = i32
+00                           ; Number of results: 0x00
+; type 1
+60                           ; Type code: 0x60 = function
+00                           ; Number of params: 0x00
+00                           ; Number of results: 0x00
+
+; Section "Import" (2) - spec: optional
+02                           ; Section code: 0x02 = Import
+12                           ; Section size: 0x12 bytes (decimal: 18)
+01                           ; Number of imports: 0x1
+; import header 0
+07                           ; String length: 0x07 bytes
+69 6D 70 6F 72 74 73         ; Import module name: ascii => "imports"
+06                           ; String length: 0x06 bytes
+70 72 69 6E 74 69            ; Import field name: ascii => "printi"
+00                           ; Import kind: 0x00 (using external_kinds table: 0 = function) "https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md#external_kind"
+00                           ; Import signature index: 0x00 (referring to function signature at type 0)
+
+; Section "Function" (3) - spec: required
+03                           ; Section code: 0x03 = Function
+02                           ; Section size: 0x02 bytes
+01                           ; Number of functions: 0x01
+01                           ; Function 0 signature index: 0x01 (refers to type 1)
+
+; Section "Start" (8) - spec: optional
+08                           ; Section code: 0x08 = Start
+01                           ; Section size: 0x01 bytes
+01                           ; Start function index (refers to function 1)
+
+; Section "Code" (10) - spec: required
+0A                           ; Section code: 0x0a = Code (decimal: 10)
+11                           ; Section size: 0x11 bytes (decimal: 17)
+01                           ; Number of functions: 0x01
+0F                           ; Function body size: 0x0f (decimal: 15)
+01                           ; Local variable declaration count: 0x01
+01                           ; Local type count of immediate type identifier: 0x01
+7F                           ; Type identifier for i32
+41                           ; i32.const (the next opcode will be a literal)
+05                           ; i32 literal: 0x05
+41                           ; i32.const
+03                           ; i32 literal: 0x03
+6A                           ; i32.add (pop two values from stack, and add them, push result onto stack)
+21                           ; set_local, take the next value pushed to the stack, and assign local at that index with stack pop value
+00                           ; local variable index: 0x00
+20                           ; get_local, take the next value pushed to the stack, and push local at that index onto stack
+00                           ; local variable index: 0x00
+10                           ; call function at index from next value pushed to stack
+00                           ; function index: 0x00
+0B                           ; end
+\end{minted}
+
+\newpage
 \subsection{Code}
 \label{sec:appendix:code}
 The full source code can be found in the \texttt{.zip}-file that contained this report. If you only have the report in PDF format, see https://github.com/AndreasHassing/microc-to-webassembly.
