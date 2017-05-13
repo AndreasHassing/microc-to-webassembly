@@ -154,11 +154,13 @@ Many programs are written in higher-level languages that run within an assisting
 
 Programs written in comparatively lower-level languages, such as C and C++, are usually compiled ahead-of-time (AOT) to native machine code using the instruction set of the compiling machine. One can often configure the compiler to target other operating systems and processor architectures than that of the compiling system. In these lower-level languages, the developer is often challenged with manually managing dynamic memory. In C, this means using \texttt{malloc} and \texttt{free} for allocation and deallocation of memory while the program is running.
 
-Note, that nothing stops us from implementing a runtime environment that supports a language which is usually AOT compiled, such as C. Such a runtime environment can then execute code written in that language as a JIT compiled application. With C, this task is most likely non-trivial.
+Note, that nothing stops us from implementing a runtime environment that supports a language which is usually AOT compiled, such as C. Such a runtime environment can then execute code written in that language as a JIT compiled application. With C, this task is most likely non-trivial.\\
+
+The notion of forward and backward compilation will be mentioned in this report, it describes the direction of compilation. Peter Sestoft has designed a forward compiler for MicroC (\texttt{Comp.fs}) and a backward continuation based compiler (\texttt{ContComp.fs}. The purpose of the backward continuation compiler is to display how some easy optimisations can be implemented when compiling in that particular direction. MicroWac will be a forward compiler with no optimisations.
 
 \subsubsection{Benefits of AOT- over JIT Compilation}
 \label{sec:problem-analysis:benefits-of-aot}
-\textbf{Type Safety} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking occurs at runtime, and errors that didn't show during development, can show up in the users browser.\\
+\textbf{Type Safety} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking occurs at runtime, and type errors that the developer was not notified of during development will show up in the browser.\\
 
 \noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process. This makes an AOT compiler preferred for live and runtime critical systems - as execution is deterministic.
 
@@ -195,9 +197,9 @@ The binary syntax contains a magic number which states that the module is WebAss
 
 Binary files are not readable to the human eye, so S-expressions is also available. The S-expression syntax for WebAssembly was described in order to keep the "View Source" functionality of the Web\footnote{You can view the source code of any JavaScript code running in your browser by right-clicking a website. The WebAssembly working group wishes to keep this tradition with WebAssembly~\cite{website:wasm-webassembly-high-level-goals}.}.
 
-The WebAssembly Working group has designed WABT\footnote{https://github.com/WebAssembly/wabt/} (WebAssembly Binary Toolkit), a toolkit that allows bidirectional translation between the binary syntax and the S-expression syntax. Browsers could use this toolkit, or a functionally equivalent derivative, to translate binaries to the S-expression syntax, such that viewing the source of WebAssembly binaries on arbitrary websites becomes easy.
+The WebAssembly Working group has developed WABT\footnote{https://github.com/WebAssembly/wabt/} (WebAssembly Binary Toolkit), a toolkit that allows bidirectional translation between the binary syntax and the S-expression syntax. Browsers could use this toolkit, or a functionally equivalent derivative, to translate binaries to the S-expression syntax, such that viewing the source of WebAssembly binaries on arbitrary websites is easy.
 
-WebAssembly is designed to work well together with JavaScript~\cite{website:wasm-webassembly-high-level-goals}. This can be deduced without looking at the goals of WebAssembly, by inspecting the design of the binary- and textual representation of WebAssembly. Code compiled to WASM are turned into modules that can be instantiated from JavaScript, and WebAssembly modules can selectively describe which components to expose to- and import from JavaScript.
+WebAssembly is designed to work well together with JavaScript~\cite{website:wasm-webassembly-high-level-goals}. This can be deduced without looking at the goals of WebAssembly, by inspecting the design of the binary- and textual representation of WebAssembly. Code compiled to WASM is turned into modules that can be instantiated from JavaScript, and WebAssembly modules can selectively define which components to expose to- and import from JavaScript.
 
 Exported and imported components from and to WASM can be of types: functions, variables and memory segments. This design allows WASM modules to make use of dependency injections, which can assist in decoupling code and separating implementation concerns.
 
@@ -267,6 +269,79 @@ Possible solutions to this problem are:
 \section{User Guide and Examples}
 \label{sec:user-guide}
 
+\subsection{Compiling the Compiler}
+\label{sec:user-guide:compile-compiler}
+To compile the compiler, some dependencies need to be resolved. To do this, use your terminal of choice, move to the root directory of the project, then resolve dependencies using \mintinline{bash}{nuget restore}\footnote{The path to the \texttt{nuget} command needs to be in the \texttt{PATH} environment variable. Can be downloaded from https://dist.nuget.org/index.html}.
+
+After dependencies are resolved, ensure that the lexer and parser are up to date (they should be), by running the PowerShell script on Windows, found in \texttt{./micro-wac/pre-build-lexpar-comp.ps1}, or the bash script on a *nix OS, found in \texttt{./micro-wac/pre-build-lexpar-comp.sh}.
+
+Once the lexer and parser are up to date, run \texttt{msbuild ./micro-wac/microwac.fsproj} on Windows (or compile via Visual Studio, a solution file is supplied), or \texttt{xbuild /target:micro-wac} on a *nix OS.
+
+\subsection{Compiling a MicroC Program}
+\label{sec:user-guide:compile-microc}
+To compile a MicroC program, the compiler can be run with the following command:
+
+\mintinline{bash}{microwac.exe [-v] [-html] <filename.c>}\\
+on Windows, and
+
+\mintinline{bash}{mono microwac.exe [-v] [-html] <filename.c>}\\
+on OS X or Linux.\\
+
+\noindent The flags are optional and have the following functionalities:
+\begin{itemize}
+	\item \textbf{-v}: Increase verbosity of the compiler. If the compiler fails it will print an error message, but with the verbose flag set it will also print a stack trace.
+	\item \textbf{-html}: The HTML flag is implemented as a band-aid, in place of the web front- and backend. It outputs a HTML template to along with the binary \texttt{.wasm} output. You only need to expose the HTML document and WebAssembly module with a webserver hosting on localhost. See section~\ref{sec:peripherals:testing-wasm},~\nameref{sec:peripherals:testing-wasm}, for instructions on how and why.
+\end{itemize}
+
+\subsubsection{\texttt{hello\_number.c} Example}
+The following program shows the syntax of printing numbers to an output channel in MicroC:
+\begin{minted}[tabsize=2]{c}
+void start() {
+	print 42;
+}
+\end{minted}
+
+When the program is compiled to WebAssembly, using MicroWac, the \texttt{print} function is supplied implicitly. As the function is named \texttt{start}, it will be run at instantiation-time. If the compiler is invoked with the \texttt{-html} flag, a template HTML file is also generated, which contains a simple output function that displays printed numbers on the screen.
+
+\subsubsection{\texttt{importexport.c} Example}
+The \texttt{importexport} example exposes how explicit imports and exports can be used from within MicroC (this is an extension to the MicroC language described in ...).%TODO: MISSING REFERENCE HERE!!!
+
+\begin{minted}[tabsize=2]{c}
+// log_number is a function imported from JS
+// the name implies that it logs a number somewhere.
+import void log_number(int x);
+
+// multiply_by_2 is an exported function that can
+// be executed in the instantiating JS environment.
+// The name is unambiguous.
+export int multiply_by_2(int x) {
+	return x * 2;
+}
+\end{minted}
+
+This program requires some additional code in the HTML template in order to work. The module cannot be instantiated without being given a \texttt{log\_number} function. The HTML template, see section~\ref{sec:appendix:code:bootstrap-template},~\nameref{sec:appendix:code:bootstrap-template}, needs to have the \texttt{jsExports} object extended with (example implementation):
+\begin{minted}[tabsize=2]{javascript}
+let jsExports = {
+	..., // snipped for brevity
+	log_number: i => console.log(i)
+}
+\end{minted}
+
+To call the exported \texttt{multiply\_by\_2} function, the following code can be added to the \texttt{.then}-statement in the HTML template:
+\begin{minted}[tabsize=2]{javascript}
+fetchAndInstantiate().then(module => {
+	... // snipped for brevity
+	let b = module.exports.multiply_by_2(42);
+	console.log(b); // logs 84 to the console
+});
+\end{minted}
+The code calls the function with 42 as an argument, stores the result in a variable \texttt{b} and then logs it to the console.
+
+\subsection{Further Examples}
+More examples can be found in \texttt{./micro-wac/test/} (made by me) and in \texttt{./micro-wac/test/plc/} (made by Peter Sestoft).
+
+In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written S-expression programs that resemble what the equivalent MicroC code was expected to compile to. Some of them are translations to examples in the test folder.
+
 \section{Technical Description}
 \label{sec:technical}
 
@@ -297,7 +372,7 @@ This section describes the use of peripheral programs and tooling that assist in
 
 \subsection{Inspecting WASM Binaries}
 \label{sec:peripherals:inspecting-wasm}
-To inspect WebAssembly binaries (and to ensure correctness) a few hexviewers were used: HxD\footnote{https://mh-nexus.de/en/hxd/} on Windows, and https://hexed.it/ on OS X and Linux.
+To inspect WebAssembly binaries (and ensure correctness) two hex viewers were used: HxD\footnote{https://mh-nexus.de/en/hxd/} on Windows, and https://hexed.it/ on OS X and Linux.
 
 \subsection{Lexer and Parser Generator}
 \label{sec:peripherals:lexpargen}
@@ -309,7 +384,7 @@ Under the hood the scripts use Gits' \texttt{hash-object} command, in order to s
 
 \subsection{Testing \texttt{.wasm} output}
 \label{sec:peripherals:testing-wasm}
-Due to time constraints, the compiler is not directly exposed to a web environment\footnote{See section~\ref{sec:problem-definition:changes},~\nameref{sec:problem-definition:changes}.} This severely reduces the simplicity of using the compiler, so a helping flag was introduced in the compiler: \texttt{-html}. If this flag is set while compiling, the compiler will generate a HTML file that loads the \texttt{.wasm} file.
+Due to time constraints, the compiler is not directly exposed to a web environment\footnote{See section~\ref{sec:problem-definition:changes},~\nameref{sec:problem-definition:changes}.} This unfortunately increases the difficulty of executing binary output of the compiler. A flags has been introduced as a compiler argument to simplify this process: \texttt{-html}. If this flag is set while compiling, the compiler will generate a HTML file that loads the \texttt{.wasm} file.
 
 A piece of JavaScript code in the HTML file uses the \texttt{fetch} API found in browsers. This API is not allowed via the \texttt{file://} protocol, thus requiring the file to be served with the \texttt{http://} protocol. It is, however, easy to run a webserver that exposes files on \texttt{http://localhost:<port>} with either Python (2 or 3) or Node.js.
 
@@ -449,6 +524,11 @@ The full source code can be found in the \texttt{.zip}-file that contained this 
 \newpage
 \noindent\textbf{Bash Version}
 \inputminted[breaklines,tabsize=2,linenos]{bash}{../micro-wac/pre-build-lexpar-comp.sh}
+
+\newpage
+\subsubsection{micro-wac/WasmBootstrapTemplate.html}
+\label{sec:appendix:code:bootstrap-template}
+\inputminted[breaklines,tabsize=2,linenos]{html}{../micro-wac/WasmBootstrapTemplate.html}
 
 \newpage
 \subsubsection{micro-wac/Wasmcomp.fs}
