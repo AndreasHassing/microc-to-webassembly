@@ -1,5 +1,4 @@
 const Available = {
-	"compilersample": "compilersample.wasm",
 	"global": "global.wasm",
 	"importexport": "importexport.wasm",
 	"simple-pointer": "simple-pointer.wasm",
