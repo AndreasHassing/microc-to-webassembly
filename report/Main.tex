@@ -192,13 +192,13 @@ JavaScript is compiled by a JIT compiler at runtime\footnote{This is not always 
 
 \subsection{WebAssembly}
 \label{sec:problem-analysis:webassembly}
-WebAssembly can be expressed using two formats: a binary syntax that can be executed in browsers (and Node.js behind a flag: \texttt{--expose-wasm}), and a textual representation called the S-expression syntax.
+WebAssembly can be expressed using two formats: a binary syntax (.wasm files) that can be executed in browsers (and Node.js behind a flag: \texttt{--expose-wasm}), and a textual representation (.wast files) called the S-expression syntax.
 
 The binary syntax contains a magic number which states that the module is WebAssembly and the version number of the binary. Then follows a number of sections that describe the intricacies of the module. The binary module is described in more detail in section~\ref{sec:problem-analysis:webassembly:binary},~\nameref{sec:problem-analysis:webassembly:binary}.
 
 Binary files are not readable to the human eye, so S-expressions is also available. The S-expression syntax for WebAssembly was described in order to keep the "View Source" functionality of the Web\footnote{You can view the source code of any JavaScript code running in your browser by right-clicking a website. The WebAssembly working group wishes to keep this tradition with WebAssembly~\cite{website:wasm-webassembly-high-level-goals}.}.
 
-The WebAssembly Working group has developed WABT\footnote{https://github.com/WebAssembly/wabt/} (WebAssembly Binary Toolkit), a toolkit that allows bidirectional translation between the binary syntax and the S-expression syntax. Browsers could use this toolkit, or a functionally equivalent derivative, to translate binaries to the S-expression syntax, such that viewing the source of WebAssembly binaries on arbitrary websites is easy.
+The WebAssembly Working group has developed WABT\footnote{https://github.com/WebAssembly/wabt/}, a toolkit that allows bidirectional translation between the binary syntax and the S-expression syntax. The toolkit, and how to use it, is described in detail in section~\ref{sec:peripherals:wabt},~\nameref{sec:peripherals:wabt}. Browsers could use this toolkit, or a functionally equivalent derivative, to translate binaries to the S-expression syntax, such that viewing the source of WebAssembly binaries on arbitrary websites is easy.
 
 WebAssembly is designed to work well together with JavaScript~\cite{website:wasm-webassembly-high-level-goals}. This can be deduced without looking at the goals of WebAssembly, by inspecting the design of the binary- and textual representation of WebAssembly. Code compiled to WASM is turned into modules that can be instantiated from JavaScript, and WebAssembly modules can selectively define which components to expose to- and import from JavaScript.
 
@@ -341,17 +341,19 @@ The code calls the function with 42 as an argument, stores the result in a varia
 \subsection{Further Examples}
 More examples can be found in \texttt{./micro-wac/test/} (made by me) and in \texttt{./micro-wac/test/plc/} (made by Peter Sestoft).
 
-In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written S-expression programs that resemble what the equivalent MicroC code was expected to compile to. Some of them are translations to examples in the test folder.
+In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written S-expression programs that resemble what the equivalent MicroC code was expected to compile to. Some of them are translations to examples in the test folder. A small test framework is written to expose the \texttt{wasm} samples to the browser, see section~\ref{sec:peripherals:run-test-framework},~\nameref{sec:peripherals:run-test-framework}, for more details.
 
 \section{Technical Description}
 \label{sec:technical}
+
+%TODO: add dependency graph
 
 \section{Testing and Validation}
 \label{sec:testing}
 
 \subsection{Known Issues}
 \label{sec:testing:known-issues}
-What follows are some of the known issues in the compiler:
+What follows are the known issues in the compiler:
 \begin{itemize}
 	\item All function return values MUST be consumed, otherwise the stack will have an incorrect count of elements on the stack at return, and will fail compilation in the browser. A way to solve this would be to ensure that, when the result of a called function is not used, its value is dropped from the stack using the WebAssembly \texttt{drop} instruction.
 
