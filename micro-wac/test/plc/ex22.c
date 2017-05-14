@@ -1,4 +1,5 @@
 // micro-C example 22 -- leapyear, optimization of andalso and orelse
+// PASSES
 
 void main(int n) {
   int y;
