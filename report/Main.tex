@@ -159,13 +159,22 @@ Note, that nothing stops us from implementing a runtime environment that support
 
 The notion of forward and backward compilation will be mentioned in this report, it describes the direction of compilation. Peter Sestoft has designed a forward compiler for MicroC (\texttt{Comp.fs}) and a backward continuation based compiler (\texttt{ContComp.fs}. The purpose of the backward continuation compiler is to display how some easy optimisations can be implemented when compiling in that particular direction. MicroWac will be a forward compiler with no optimisations.
 
+\subsubsection{Linking}
+\label{sec:problem-analysis:compilers:linking}
+When compiling, a program usually has some sort of dependencies. For C, it could be the standard library, and an IO function in that library. Dependencies can be linked either at compile time, or at runtime.
+
+Linking at compile time is called "static linking". Static linking combines the program with its dependencies into a single binary file.
+
+Runtime linking, also known as "dynamic linking", is used by WebAssembly. Dynamic linking allows dependencies to be linked at runtime. A large benefit of this model is: as long as there are no breaking changes to a dependency, it can be updated without recompiling the program, simply replace the binary of the dependency. The .NET platform also uses dynamic linking, usually by linking against \texttt{.DLL}-files (Dynamic-link library).
+
 \subsubsection{Benefits of AOT- over JIT Compilation}
-\label{sec:problem-analysis:benefits-of-aot}
+\label{sec:problem-analysis:compilers:benefits-of-aot}
 \textbf{Type Safety} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking occurs at runtime, and type errors that the developer was not notified of during development will show up in the browser.\\
 
 \noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process. This makes an AOT compiler preferred for live and runtime critical systems - as execution is deterministic.
 
 \subsection{Stack Machines}
+\label{sec:problem-analysis:stack-machines}
 Stack machines implement some derived behaviour of what is known as the abstract stack machine. The stack machine executes code by pushing values onto- and popping values off a stack data structure, hence the name. The instructions are added to the stack using reverse polish notation, also called postfix notation. This notation works by turning infix operators into postfix, for instance: \mintinline{fsharp}{3 + 4} becomes \mintinline{fsharp}{3 4 (+)}. The machine keeps popping the top element on the stack to figure out what to do next.
 
 Specific implementations of stack machines have a set of instruction codes that can be used. For instance, the WebAssembly stack machine has the \texttt{i32.add} instruction code, which, when popped, pops two operand values off the stack, adds them together and pushes the result back onto the stack. Several arithmetic-, logic- and other instruction codes are available in the WebAssembly stack machine~\cite{website:wasm-binary-encoding}.
@@ -202,7 +211,7 @@ The WebAssembly Working group has developed WABT\footnote{https://github.com/Web
 
 WebAssembly is designed to work well together with JavaScript~\cite{website:wasm-webassembly-high-level-goals}. This can be deduced without looking at the goals of WebAssembly, by inspecting the design of the binary- and textual representation of WebAssembly. Code compiled to WASM is turned into modules that can be instantiated from JavaScript, and WebAssembly modules can selectively define which components to expose to- and import from JavaScript.
 
-Exported and imported components from and to WASM can be of types: functions, variables and memory segments. This design allows WASM modules to make use of dependency injections, which can assist in decoupling code and separating implementation concerns.
+Exported and imported components from and to WASM can be of types: functions, variables and memory segments. This design allows WASM modules to make use of dependency injections, which can assist in decoupling code and separating implementation concerns. By using this design, WASM can dynamically link libraries and implementations.
 
 \subsubsection{The S-expression Syntax}
 \label{sec:problem-analysis:webassembly:s-exp}
@@ -230,20 +239,51 @@ The \texttt{printi} function needs to be injected into the module from within th
 
 \subsubsection{The Binary Format}
 \label{sec:problem-analysis:webassembly:binary}
-The binary format of WebAssembly modules contains the magic number and several sections that determine the behaviour of the modules.
+The binary format of WebAssembly modules contains the magic number and several sections that determine the behaviour of the modules. Each section also contains the size of itself - this information can be used by a browser  to start working as soon as it receives the final byte of a section.
 
-The S-expression syntax example from section~\ref{sec:problem-analysis:webassembly:s-exp},~\nameref{sec:problem-analysis:webassembly:s-exp} has been compiled to binary format and explained in detail. This binary analysis can be found in~\ref{sec:appendix:wasm-examples:binary-print},~\nameref{sec:appendix:wasm-examples:binary-print}.
+Number literals in the binary format are little-endian~\cite{website:wasm-binary-encoding}. When a number system is little-endian, the least significant byte of a number is stored at the lowest memory address.
+
+The following sections~\cite{website:wasm-modules} in the binary format are relevant to MicroC (the number in this list corresponds to the ID of the section):
+\begin{enumerate}
+	\item Type section, keeps track of the set of unique function types in the program. For instance, if a function has a return type of void and takes an integer argument, that type information must be located in the type section. It is permitted to add more than one of the same type.
+	\item Import section, keeps track of the imported functions and data from the environment. This is how WebAssembly handles dynamic linking.
+	\item Function section, maps each function index to its type index (as found in the type section), information required by the WASM compiler in browsers to ensure the types of compiled functions are satisfied.
+	\setcounter{enumi}{4}
+	\item Memory section, keeps track of the amount of memory a WebAssembly modules has available at start, and (optionally) how much it is allowed to request in total. No information regarding what is inside the linear memory is contained in this section.
+	\item Global section, keeps track of the global variables, their type and whether they can be mutated or not. This seems to be an obvious candidate for storing global variables, but is later revealed not to be the case.
+	\item Export section, keeps track of exported functions, memory and global variables.
+	\item Start section, contains a single value stating the ID of the function to start at instantiation-time.
+	\setcounter{enumi}{9}
+	\item Code section, the function code is stored here as stack machine instruction codes. Each function declaration in the code section is accompanied by a count of local variable declarations and information regarding what types they each have.
+\end{enumerate}
+
+Three sections are disregarded for this project: The table section, the element section and the data section. The table section is for indirect function calls on indexes - this was not useful to the MicroC compiler, as indirect calls is not a supported feature. The element section can be used to set the contents of a table - useless without the table section.
+
+The data section can be used to initialise the data in linear memory at instantiation-time. A string can be put into linear memory via the data section, - but as strings are not supported in MicroC, it was redundant to include this section.
+
+The S-expression syntax example from section~\ref{sec:problem-analysis:webassembly:s-exp},~\nameref{sec:problem-analysis:webassembly:s-exp}, has been compiled to binary format and explained in detail. This binary analysis can be found in~\ref{sec:appendix:wasm-examples:binary-print},~\nameref{sec:appendix:wasm-examples:binary-print}.
 
 \subsubsection{Linear Memory}
-\label{sec:problem-analysis-webassembly:linear-memory}
+\label{sec:problem-analysis:webassembly:linear-memory}
+WebAssembly modules can declare the need for an array-like memory segment called the linear memory. The linear memory has its size defined by the number of pages, where a single page is 64KiB\footnote{64 Kibibytes $=$ 65,536 bytes.}. A WebAssembly module can have zero pages of memory, 1 page or $n$ pages, and can grow the memory at runtime if needed using the \texttt{grow\_memory} instruction code.
+
+A developer can access data in linear memory by using a set of load- and store instruction codes. The codes that are interesting to this project can be found in the list below, they are selected based on what MicroC can compile to:
+\begin{itemize}
+	\item \texttt{i32.store}: Pops two elements element off of the stack, the first is the value that the memory location will be set to, the second is the location to set. This operation code can be used to set the values of variables where the address must be known (\texttt{\&x;} results in the address of \texttt{x}, thus it must be in referenceable memory). The operator must be accompanied by a \texttt{memory\_immediate}\cite[\#memory-related-operators]{website:wasm-binary-encoding} which describes the flags of the operator and the offset. The offset can be used to distinguish function scopes from each other, such that a variable declared inside a function is described by the functions memory offset plus the relative offset of the variable.
+	\item \texttt{i32.load}: Pops an element off the stack and uses it as the address of a 32-bit integer to load from linear memory. Loads 4 bytes and puts the resulting integer onto the stack. This operation code can be used to load integer- and pointer values. Pointer values can be integers because the address space cannot be larger than 32-bits unsigned, as WebAssembly is 32-bit only~\cite[\#addressing]{website:wasm-semantics}.
+	\item \texttt{i32.store8}: Similar to \texttt{i32.store}, but wraps the 32-bit integer to an 8-bit integer. This can be used for the MicroC char data-type which is a single byte (8 bits) wide.
+	\item \texttt{i32.load8\_u}: Similar to \texttt{i32.load}, but only loads 8 bits and zero-extends to a 32-bit integer. This can be used to load a single byte from memory, i.e., a char.
+\end{itemize}
+
+% TODO: remember to talk about why only 1 page is allocated
 
 \subsubsection{Aligning MicroC and WebAssembly}
-\label{sec:problem-analysis-webassembly:aligning}
+\label{sec:problem-analysis:webassembly:aligning}
 In this section, some discovered misalignments between MicroC and WebAssembly will be discussed and handled.
 
 \noindent \textbf{The builtin print and println functions.} MicroC has two built-in functions: \texttt{print} and \texttt{println}. They are converted to internal \texttt{printi}, and \texttt{printc} functions, that print an integer and a char respectively. \texttt{println} is simply a call to \texttt{printc} with $10$ as an argument (10 is the new line feed character in ASCII\footnote{See http://www.asciitable.com/.}). A few ways on how this could be handled in the conversion to WebAssembly comes to mind:
 \begin{itemize}
-	\item The functions could be hardcoded as imports in the generated module, thus allowing the compiler to stay MicroC compliant, but forcing the user of the module to supply an implemention of the two functions.
+	\item The functions could be hardcoded as imports in the generated module, thus allowing the compiler to stay MicroC compliant, but forcing the user of the module to supply an implementation of the two functions.
 	\item Remove the keywords and functionality from MicroC, and instead implement an \texttt{import} keyword in the compiler, such that function signatures can be specified which could then give the user more power over what kind of functions that must be imported. For instance, \mintinline{c}{import void print(int i);} would require the user of the module to hand an imports object to the module with a print function that takes an integer as argument and returns nothing. This design has a familiar resemblance to prototypes in C.
 
 	A downside to this solution is that it breaks previously working MicroC programs that use the \texttt{print} or \texttt{println} functions.
@@ -255,7 +295,7 @@ Many instruction codes from the MicroC stack machine do not exist in WebAssembly
 
 The instruction code problem leads to the next issue: without \texttt{ldi}, how are variables loaded? It turns out, that WebAssembly does not have the modifiable and globally available stack, as in the MicroC stack machine. In the MicroC stack machine a base- and stack pointer is used to get access to variable adresses and values. In WebAssembly, there are 3 ways of storing and retrieving data: Global variables (using the instruction codes \texttt{set\_global} and \texttt{get\_global}), local variables (\texttt{set\_local} and \texttt{get\_local}) and data stored in linear memory (\texttt{i32.store} and \texttt{i32.load}). Normally, having three ways to do something is a good thing, but only data stored in linear memory can be accessed by address. This can generate some problems, as pointers and arrays are access-by-address.
 
-In the following program, an integer is \texttt{x} is declared and its value set to $5$. Then the address of \texttt{x} is passed to the \texttt{changeInt} function along with the number $42$. At first glance, one could assume that creating a local variable in the \texttt{main} function and using \texttt{get/set\_local} would work, but it wont. Local variables have no addresses, and thus cannot be accessed by functions other than the one that declared it.
+In the following program, an integer is \texttt{x} is declared and its value set to $5$. Then the address of \texttt{x} is passed to the \texttt{changeInt} function along with the number $42$. At first glance, one could assume that creating a local variable in the \texttt{main} function and using \texttt{get/set\_local} would work, but it wont. Local variables have no addresses, and thus cannot be accessed by functions aside the one that declared it.
 \begin{minted}[tabsize=2]{c}
 void changeInt(int* i, int to) { *i = to; }
 void main() { int x; x = 5; changeInt(&x, 42); }
@@ -263,9 +303,11 @@ void main() { int x; x = 5; changeInt(&x, 42); }
 
 Possible solutions to this problem are:
 \begin{itemize}
-	\item Initially declare all variables defined inside the scope of a function as local, until they are referenced, at which point they are moved from the local environment to linear memory. Any access to the value of a variable inside linear memory variable will happen by dereferencing the address into the linear memory.
-	\item An easier to implement version of the proposal above: declare all variables in linear memory, except for function arguments which are special.
+	\item Declare all variables defined inside a function block as locals, until they are referenced, at which point they are moved from the local environment to linear memory. Any access to the value of a variable inside linear memory variable will occur by dereferencing the address into the linear memory.
+	\item A simpler version of the proposal above: declare all variables in linear memory, except for function arguments which are special.
 \end{itemize}
+
+Due to time constraints, I decided to go with the 2nd solution, but wanted to implement the 1st. See %TODO: reference to technical description: variables in memory
 
 \section{User Guide and Examples}
 \label{sec:user-guide}
@@ -345,20 +387,110 @@ In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written
 
 \section{Technical Description}
 \label{sec:technical}
+In this section, design choices made during the project are discussed and technical aspects of the compiler is explained.
 
-%TODO: add dependency graph
+\subsection{}
+% TODO missing a few pages here regarding decisions made while creating the compiler
+
+\subsection{Compiling to WebAssembly}
+\label{sec:technical:webassembly}
+Some of the interesting intricacies of compiling to the WebAssembly binary format are dissected in this section.
+
+\subsubsection{LEB128: Variable size integer encoding}
+Specified in the DWARF Debugging Information Format~\cite{DWARF}, the LEB128, or Little Endian Base 128, variable size integer encoding is used in WebAssembly to encode most integers in the binary format~\cite[\#numbers]{website:wasm-binary-encoding}. In layman's terms, the encoding can store arbitrary size integers in few bytes.
+
+In the WebAssembly documentation, a LEB128 number is called either a \texttt{varuintN} for a unsigned LEB128 number, and \texttt{varintN} for a signed LEB128 number.
+
+To encode integers with LEB128, the algorithm found in the paper~\cite{DWARF} must be implemented. To avoid spending time re-implementing LEB128, an open source (MIT-Licensed) version of the algorithm was found\footnote{https://github.com/yageek/LEB128/blob/d05713742dd56bc2d1eaed44956f20f6755fa4e9/Sources/LEB128.swift\#L79} - the algorithm, coded in Swift, was translated to F\#. See the implementation of the function \texttt{i2leb} in~\ref{sec:appendix:code:WasmMachine.fs},~\nameref{sec:appendix:code:WasmMachine.fs}.
+
+\begin{center}
+    \begin{tabular}{| l | l | l | l |}
+    \hline
+    Hexadecimal & WebAssembly Binary & LEB128 & Signed LEB128 \\ \hline
+    00    & 00000000 &     0 &    0 \\ \hline
+    01    & 00000001 &     1 &    1 \\ \hline
+    7F    & 01111111 &   127 &   -1 \\ \hline
+    80 7F & 10000000 & 16256 & -128 \\
+          & 01111111 & &            \\ \hline
+    2A    & 00101010 &    42 &   42 \\ \hline
+    56    & 01010110 &    86 &  -42 \\ \hline
+    \end{tabular}
+\end{center}
+
+The table above depicts how a handful of numbers are encoded with LEB128 (unsigned and signed) and their binary representations.
+
+There are times when WebAssembly expects standard byte-encoded 32-bit integers in the binary format. In this case, a function \texttt{i2b} uses the \texttt{BitConverter} class found in the .NET library to convert an integer to bytes, it then reverses the ordering as integers are little endian in WebAssembly.
+
+\subsubsection{Linear Memory}
+\label{sec:technical:webassembly:memory}
+In every module, MicroWac allocates a single page of memory (64KiB). This is the smallest amount that a WebAssembly module can demand. Linear memory is used to store global and local variables, such that they can be referenced by address.
+
+The reasoning behind a single page of memory is, that it can store 16384 integers or 65536 chars\footnote{65536 bytes / 4 bytes per integer = 16384 integers. A char takes up a single byte in memory.}. It seemed unlikely that anyone testing MicroWac would create more variables than that. If, however, this is is the case, the compiler can easily be extended such that it keeps track of how much memory is spent, and makes sure to allocate enough pages to support the variable count.
+
+\subsection{Dependency Graph}
+\label{sec:technical:dependency-graph}
+This section contains a dependency graph of the compiler, and a explanation of how the different modules fit together.
+
+\begin{figure}[H]
+	\includegraphics[width=0.65\textwidth]{DependencyGraph}
+	\centering
+	\caption{Dependency graph of the MicroWac compiler. \texttt{Program.fs} contains the entry point.}
+\end{figure}
+
+The dependency graph depicts how different parts of the compiler infrastructure are connected. The lexer, parser and Parse program depend on the FsLexYacc runtime, which exposes some tokenising and text parsing features, they also depend on the abstract syntax defined in \texttt{Absyn.fs}. The backend of the compiler also depends on the abstract syntax as it translates the tree generated by the frontend to binary WebAssembly code.
+
+This design is almost identical to the one defined by Peter Sestoft. The only change is, that a \texttt{Program.fs} file exists, which exposes a \texttt{main} function that allows the compiler to be invoked via a command line terminal. It is a good design that splits the frontend and backend fairly well.
+
+\subsection{Extension to MicroC}
+\label{sec:technical:extension}
+MicroC has been extended with the \texttt{import} and \texttt{export} keywords. They can be used to define function prototypes (signatures) for dynamically linked function definitions, and to decide which functions to export to the instantiating environment. The keywords are added to the lexer, and the parser has been extended to accommodate the behaviour.
+
+The formal grammar for these new keywords is:
+\begin{minted}{fsharp}
+ImportedFunsig ::= IMPORT Funsig               // example: import void fun(int x);
+
+ExportedFundec ::= EXPORT Fundec               // example: export int fib(int n) { ... }
+
+Funsig ::= VOID NAME LPAR Paramdecs RPAR SEMI  // example: void fun(int x);
+        |  Type NAME LPAR Paramdecs RPAR SEMI  // example: int fun();
+        
+Fundec ::= VOID NAME LPAR Paramdecs RPAR Block // example: void log_n(int n) { ... }
+        |  Type NAME LPAR Paramdecs RPAR Block // example: char int_to_char(int i) { ... }
+\end{minted}
+
+For the complete grammar, see~\ref{sec:appendix:code:CPar.fsy},~\nameref{sec:appendix:code:CPar.fsy}.
+
+The abstract syntax is also extended for this feature to work: the notion of a function signature has been added, it resembles function prototypes in C, and a boolean is added to the \texttt{Fundec} union type, declaring whether the function is exported or not. These changes can be found in~\ref{sec:appendix:code:Absyn.fs},~\nameref{sec:appendix:code:Absyn.fs}.
+
+
 
 \section{Testing and Validation}
 \label{sec:testing}
+This section details how testing and validation has been conducted. Furthermore, known issues are examined.
+
+\subsection{The PLC Tests}
+\label{sec:testing:plc}
+A set of 24 tests were supplied along with the original MicroC project\footnote{http://www.itu.dk/people/sestoft/plc/microc.zip}. In order to pass these tests, output of the WebAssembly binaries should equal output of the MicroC stack machine running the same program.
+
+The tests encompasses number arithmetic, pointer arithmetic, arrays, looping- and logical constructs. For each of the \texttt{.c} examples in the \texttt{./micro-wac/test/plc/} directory, a comment has been inserted at the top of the test, to state whether the test passed or not.
+
+Most tests were altered slightly, to allow the program to run at instantiation-time. A \texttt{start} function was added to tests, invoking \texttt{main}.
+
+Test \#2 fails partially (on array access via pointer address addition). The failure of this test is explained in section~\ref{sec:testing:known-issues},~\nameref{sec:testing:known-issues}, issue \#2.
+
+Test \#11 fails completely, due to a store operation being attempted on an empty stack. I unfortunately didn't have time to inspect and debug this test, but assume that the \texttt{varAccess} function messes something up somehow.
 
 \subsection{Known Issues}
 \label{sec:testing:known-issues}
 What follows are the known issues in the compiler:
-\begin{itemize}
+\begin{enumerate}
 	\item All function return values MUST be consumed, otherwise the stack will have an incorrect count of elements on the stack at return, and will fail compilation in the browser. A way to solve this would be to ensure that, when the result of a called function is not used, its value is dropped from the stack using the WebAssembly \texttt{drop} instruction.
 
 	Reproducible with:\\
-	\mintinline{c}{int iReturn() { return 42; } main() { iReturn(); }}
+	\mintinline{c}{int iReturn() { return 42; } void main() { iReturn(); }}
+	
+	Workaround until the issue is fixed:\\
+	\mintinline{c}{int iReturn() { return 42; } void main() { int x; x = iReturn(); }}
 
 	\item Array access using the dereferencing operator and addition is not working properly. In\\\nameref{sec:appendix:code:plc-ex2.c} line 27, the compiled program yields incorrect output. Not completely sure why this problem occurs, but I think it has something to do with the offset and relative addresses of variables (which are multiplied by their type width).
 
@@ -367,11 +499,11 @@ What follows are the known issues in the compiler:
 	\item The code that supports compilation of variable access (the \texttt{varAccess} function in \nameref{sec:appendix:code:Wasmcomp.fs}, lines 202 to 242) is a mess and is not very readable. Not really a bug, but probably the reason behind some.  Unfortunately, due to time constraints, I didn't get to clean it up.
 
 	\item In the original MicroC compiler (written by Peter Sestoft), variables that are out of scope bleed into other scopes. A test, see \nameref{sec:appendix:code:test-scope.c}, revealed this problem. This issue does not exist in MicroWac, as MicroWac keeps track of the depth of variables, and declares them as being outside of a scope as soon as their enclosed scope ends.
-\end{itemize}
+\end{enumerate}
 
 \section{Peripheral Programs and Tooling}
 \label{sec:peripherals}
-This section describes the use of peripheral programs and tooling that assist in, compiling the compiler, or exposing the generated code from compiled MicroC programs.
+This section describes the use of peripheral programs and tooling that assist in: compiling the compiler, exposing the generated code from compiled MicroC programs, and handling WAST S-expression programs and WASM binaries.
 
 \subsection{Inspecting WASM Binaries}
 \label{sec:peripherals:inspecting-wasm}
@@ -430,6 +562,9 @@ This command opens up F\# interactive with the compiler loaded. To use the compi
 
 \section{Future Extensions}
 \label{sec:extensions}
+This section contains ideas on what the compiler could be extended with.
+
+Possible future maintainers of this code are recommend to pour effort into cleaning up the code that handles variable storage in linear memory. When that part of the compiler is optimal, extending it should be a whole lot simpler.
 
 \subsection{Compiler Optimisations}
 \label{sec:extensions:optimisations}
@@ -455,10 +590,19 @@ As can be seen in figure~\ref{fig:peephole-optimisation}, only the multiplicatio
 
 Peephole optimisations fall short when more elaborate optimisations are needed. For instance, if you have many small functions you may want to inline them where used. If we reuse the example from above, with the add function, simply adding the result to the stack rather than calling the function each place is fewer operations, thus inlining would yield a benefit. During peephole optimisation, you won't have information regarding the environment, thus you won’t know what the function that is being called will do, and will not know if inlining is legal.
 
+\subsection{Expose the Compiler to the Web}
+As described in section~\ref{sec:problem-definition:method},~\nameref{sec:problem-definition:method}, the original intent was to create a web application that exposed an API to the compiler running on a server. This would give WebAssembly beginners the possibility figure out how code in a C-like language compiles to WebAssembly instantaneously.
+
+Some legacy code from the inception of this project still remains in the \texttt{./web-backend/} directory. It contains some Node.js code (JavaScript) to start an Express.js server that can receive simple compile requests (\texttt{server.js}), and code to run processes and receive data from the \texttt{stdin/stderr} file descriptors which could be used to send errors back to the user.
+
+This extension would be interesting to finish before WebAssembly becomes mainstream, as it's tools like these that are in high demand now, and not when toolchains are better in a year or two.
+
+\newpage
 \section{Conclusion}
 \label{sec:conclusion}
-% Remember to discuss which things went wrong, and why.
+% TODO missing conclusion
 
+\newpage
 \section{References}
 \label{sec:references}
 \begingroup
@@ -543,7 +687,7 @@ Peephole optimisations fall short when more elaborate optimisations are needed. 
 \newpage
 \subsection{Code}
 \label{sec:appendix:code}
-The full source code can be found in the \texttt{.zip}-file that contained this report. If you only have the report in PDF format, see https://github.com/AndreasHassing/microc-to-webassembly.
+Only code that is referred to directly in this report is included as part of this appendix. The full source code can be found in the \texttt{.zip}-file that contained this report. If you only have the report in PDF format, see https://github.com/AndreasHassing/microc-to-webassembly.
 
 \subsubsection{micro-wac/pre-build-lexpar-comp.\{sh$|$ps1\}}
 \label{sec:appendix:code:pre-build-lexpar-comp}
@@ -558,6 +702,21 @@ The full source code can be found in the \texttt{.zip}-file that contained this 
 \subsubsection{micro-wac/WasmBootstrapTemplate.html}
 \label{sec:appendix:code:bootstrap-template}
 \inputminted[breaklines,tabsize=2,linenos]{html}{../micro-wac/WasmBootstrapTemplate.html}
+
+\newpage
+\subsubsection{micro-wac/Absyn.fs}
+\label{sec:appendix:code:Absyn.fs}
+\inputminted[breaklines,tabsize=2,linenos]{fsharp}{../micro-wac/Absyn.fs}
+
+\newpage
+\subsubsection{micro-wac/CPar.fsy}
+\label{sec:appendix:code:CPar.fsy}
+\inputminted[breaklines,tabsize=2,linenos]{fsharp}{../micro-wac/CPar.fsy}
+
+\newpage
+\subsubsection{micro-wac/WasmMachine.fs}
+\label{sec:appendix:code:WasmMachine.fs}
+\inputminted[breaklines,tabsize=2,linenos]{fsharp}{../micro-wac/WasmMachine.fs}
 
 \newpage
 \subsubsection{micro-wac/Wasmcomp.fs}
