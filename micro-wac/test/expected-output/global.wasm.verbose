@@ -60,10 +60,14 @@
 0000043: 00                                        ; func body size (guess)
 0000044: 00                                        ; local decl count
 0000045: 41                                        ; i32.const
-0000046: 00                                        ; i32 literal
-0000047: 28                                        ; i32.load
-0000048: 02                                        ; alignment
-0000049: 00                                        ; load offset
-000004a: 0b                                        ; end
-0000043: 07                                        ; FIXUP func body size
-0000037: 13                                        ; FIXUP section size
+0000046: 2a                                        ; i32 literal
+0000047: 10                                        ; call
+0000048: 00                                        ; function index
+0000049: 41                                        ; i32.const
+000004a: 00                                        ; i32 literal
+000004b: 28                                        ; i32.load
+000004c: 02                                        ; alignment
+000004d: 00                                        ; load offset
+000004e: 0b                                        ; end
+0000043: 0b                                        ; FIXUP func body size
+0000037: 17                                        ; FIXUP section size
