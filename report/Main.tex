@@ -393,7 +393,31 @@ To start a web server in the local directory with Node installed, first install 
 
 Node may not be readily available, in which case maybe Python is. To start a web server with Python2, run the command \texttt{python -m SimpleHTTPServer}, and for Python3, run the command \texttt{python -m http.server}, no installation is required for either command.
 
-%TODO: add subsection about the run-tests framework found in expected-output
+\subsection{WABT - WebAssembly Binary Toolkit}
+\label{sec:peripherals:wabt}
+The Webassembly Binary Toolkit is used to create binaries (.wasm files) from S-expression files (.wast), and the reverse. During the project, the toolkit was used extensively to inspect binary output of the compiler, and to understand the S-expression syntax.
+
+The tests located in \texttt{./micro-wac/test/expected-output/} were written by hand in the S-expression syntax, then compiled to binary with WABT: \mintinline{bash}{wast2wasm <name>.wast -o <name>.wasm}, and extra verbose output was generated with: \mintinline{bash}{wast2wasm <name>.wast -v > <name>.wasm.verbose}, this command essentially generates the binary in a human readable form with the addition of some informational comments.
+
+To reverse the process, going from binary to S-expression, the command \texttt{wasm2wast <name>.wasm} was used to get the S-expression syntax version of the binary outputted to the console. This was very helpful when the compiled binaries were inspected.\\
+
+\noindent WABT needs to be compiled using CMake and Make. Instructions can be found in the repository at\\https://github.com/WebAssembly/wabt.
+
+\subsection{Run-test framework}
+\label{sec:peripherals:run-test-framework}
+In order to easily test hand-written S-expression WebAssembly modules, a tiny test framework was written. This framework is located in \texttt{./micro-wac/test/expected-output/}, in \texttt{run-test.html} and its connected files. To run the framework, start a web-server in the \texttt{expected-output} directory and navigate to \texttt{http://localhost:8080/run-test.html}.
+
+\texttt{run-test-available.js} contains the WebAssembly modules available for testing, and can be generated with the \texttt{run-test-available.generate.\{ps1$|$sh\}} files.
+
+The test framework loads the available WebAssembly modules and adds them to a list for the user to compile and run. The binary modules are inspected, such that any exported functions are also exposed and can be executed. Note, that when a function that takes arguments is called without, the arguments will be defaulted to a value of 0 (the \texttt{while.wast} sample, for instance).
+
+When a program or function executed in the test framework outputs with a print function, the output can be found in the browsers console log. To access the log on Google Chrome, open the \texttt{Developer Tools}, then click \texttt{Console}.
+
+\begin{figure}[H]
+	\includegraphics[width=0.65\textwidth]{WasmTestFrameworkScreenshot}
+	\centering
+	\caption{Screenshot of the test framework in action.}
+\end{figure}
 
 \subsection{Prototyping in F\#}
 \label{sec:peripherals:prototyping}
