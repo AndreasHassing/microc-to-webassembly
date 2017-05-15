@@ -88,11 +88,11 @@ The purpose of this project is to build a compiler, also called a translator, fr
 
 MicroC is a C-like language described by Peter Sestoft in the book Programming Language Concepts~\cite{PLC}. The original lexer and parser code can be found at his website\footnote{http://www.itu.dk/people/sestoft/plc/}.\\
 
-This report will give a more in-depth explanation of how the WebAssembly format works, and discuss how a compiler, that goes from a C-like language to this new platform, can be designed.\\
+This report will give a in-depth explanation of how the WebAssembly format works and discuss how a compiler, that goes from a C-like language to this new format, can be designed.\\
 
 I have previously had experience with compiler design. In the course: "Programs as Data", I extended the MicroC compiler with a handful of features: optimisations in the backwards continuation-based MicroC compiler, more looping constructs, compound assignment operators, increment/decrement operators and more.
 
-While these alterations don't explicitly teach compiler design from-scratch, I had confidence that observing and analysing the behaviour of the pre-defined compiler yielded enough knowledge to get started writing my own.
+While these feature additions don't teach compiler design from-scratch, I elected to do this project because I was confident that observing and analysing the behaviour of the original compiler yielded enough knowledge to get started writing my own.
 
 MicroWac, the name of the MicroC to WebAssembly compiler described in this report, uses the abstract syntax (with some extensions) and the lexer and parser from the original MicroC project by Peter Sestoft. The compiler is written from scratch, as the differences between the MicroC stack machine and WebAssembly binaries are significant.
 
@@ -106,7 +106,7 @@ The purpose of this project is to shed some light on the unfinished WebAssembly 
 
 \subsection{Method}
 \label{sec:problem-definition:method}
-What follows is the planned activities and sources of information.
+What follows are the planned activities and sources of information.
 \begin{itemize}
 	\item Translation of MicroC to the binary WebAssembly format, using FsLexYacc\footnoteref{footnote:fslexyacc-url}, as used in the Programs as Data course (fall 2016).
 	\item Course books from Programs as Data (fall 2016) will be used as knowledge base for MicroC to WebAssembly translation:
@@ -127,13 +127,13 @@ What follows is the planned activities and sources of information.
 
 \subsection{Changes to Method and Problem Definition}
 \label{sec:problem-definition:changes}
-I realized while coding the compiler that I would have to stop working on it prematurely to get the web back- and frontend working as well. This was an underestimation on my part.
+I realised while coding the compiler, that I would have to stop working on it prematurely to get the web back- and frontend working as well. This was an underestimation on my part.
 
-In a meeting with Niels Hallenberg on May 1st we agreed to discard the web part of this project. To make up for the loss I have added a flag (\texttt{-html}) to the compiler which generates a HTML template to go along with the \texttt{.wasm} output. The HTML template makes it easy to test compiled WebAssembly binaries, as you can serve the HTML with a simple HTTP server, see section~\ref{sec:peripherals:testing-wasm},~\nameref{sec:peripherals:testing-wasm}, on how to do that.\\
+In a meeting with Niels Hallenberg on May 1st we agreed to discard the web part of this project. In an attempt to make up for the loss, I have added a flag (\texttt{-html}) to the compiler which generates a HTML template to go along with the \texttt{.wasm} output. The HTML template makes it easy to test compiled WebAssembly binaries, as you can serve the HTML with a simple HTTP server, see section~\ref{sec:peripherals:testing-wasm},~\nameref{sec:peripherals:testing-wasm}, on how to do that.\\
 
-\noindent I do not feel that I have the knowledge required to reflect over the security of WebAssembly. Discussing the portability of WebAssembly also feels a little out of my reach - I can make assumptions about how I fear that later versions of WebAssembly will diverge, in the case that some browser vendors feel that development of the standard is too slow, but in the end I do not feel that this is a very important discussion to have. Instead I have spent some time extending MicroC with \texttt{import} and \texttt{export} keywords, and discuss the implementation of these in section~\ref{sec:technical},~\nameref{sec:technical}.\\
+\noindent I do not feel that I have the knowledge required to reflect over the security of WebAssembly. Discussing the portability of WebAssembly also feels a little out of my reach - I can make assumptions about, how I fear that later versions of WebAssembly will diverge, in the case that a browser vendor feel that development of the standard is too slow, but in the end I do not feel that this is a very important discussion to have in this report. Instead I have spent some time extending MicroC with \texttt{import} and \texttt{export} keywords, and discuss the implementation of these in section~\ref{sec:technical},~\nameref{sec:technical}.\\
 
-\noindent It is no longer required to set flags in browsers, or use nightly browser versions in order to run WebAssembly binaries.
+\noindent As of Chrome version 57 and Firefox version 52\footnote{https://developer.mozilla.org/en-US/docs/WebAssembly\#Browser\_compatibility} it is no longer required to set flags in browsers, or use nightly browser versions in order to run WebAssembly binaries.
 
 \newpage
 \section{Problem Analysis}
@@ -146,9 +146,9 @@ Before designing a compiler, an important question must be put forth and answere
 
 According to the definition laid out by Mogensen~\cite{BCD}, a compiler is a program that takes the source code of another program as input, usually some higher-level language such as C\#, and compiles it to a lower-level representation, Common Intermediate Language code - in the case of C\#, or binary machine code instructions - in the case of C. There are more low-level representations out in the wild, but these two will be the ones referenced to in this report.
 
-Compilers are separated into a frontend and a backend. The frontend is responsible for parsing the code written by a developer and turning it into an abstract syntax. The backend converts the abstract syntax into a format the targeted system can understand. In MicroC, the lexer and parser that are defined in \texttt{CLex.fsl} and \texttt{CPar.fsy} respectively, make up the frontend part of the compiler, whereas \texttt{WasmMachine.fs} and \texttt{Wasmcomp.fs} make up the backend part. Together, the frontend and backend work in tandem to take user-written code as input, and output a program that the machine can run.
+Compilers are separated into a frontend and a backend. The frontend is responsible for parsing the code written by a developer and turning it into an abstract syntax. The backend converts the abstract syntax into a format the targeted system can understand. In MicroC, the lexer and parser that is defined in \texttt{CLex.fsl} and \texttt{CPar.fsy} respectively, make up the frontend part of the compiler, whereas \texttt{WasmMachine.fs} and \texttt{Wasmcomp.fs} make up the backend part. The frontend and backend work in tandem to take user-written code as input, and output a program that the machine can run. In the case of this project: a program that a WebAssembly machine can run.
 
-The decoupling of the frontend and backend in a compiler yields a great benefit: A new frontend can be added for a backend, thus supporting more languages that compile to the same type of backend, and a new backend can be added to a frontend, such that the compiler supports more systems. If, for instance, we wrote a compiler that compiles from F\# to WebAssembly, we could add an extra frontend that took care of C\# and reuse the backend. This separation is used nicely in the LLVM compiler, which supports many backends and frontends, and defining a target-independent optimiser which can be used across languages and systems\footnote{http://llvm.org/}.\\
+The decoupling of the frontend and backend in a compiler yields a great benefit: A new frontend can be added for a backend, thus supporting more languages that compile to the same type of backend, and a new backend can be added to a frontend, such that the compiler supports more systems. If, for instance, we wrote a compiler that compiles from F\# to WebAssembly, we could add an extra frontend that parses C\# and reuse the backend. This separation is used in the LLVM compiler, which supports many backends and frontends, and defining a target-independent intermediate representation which can be used across languages and systems\footnote{http://llvm.org/}.\\
 
 Many programs are written in higher-level languages that run within an assisting runtime environment and compiles to a variant of bytecode, with an instruction set specified in the virtual machine of the runtime. When the runtime is started and the program bytecode is passed to it, it performs a just-in-time (JIT) compilation to native machine code using the instruction set of the machine's processor. .NETs' CLR and Javas' JRE are two such runtimes that both support several higher-level languages, such as C\#, F\#, Java and Scala. Runtime environments often come equipped with integrated memory management in the form of a garbage collector.
 
@@ -156,7 +156,7 @@ Programs written in comparatively lower-level languages, such as C and C++, are 
 
 Note, that nothing stops us from implementing a runtime environment that supports a language which is usually AOT compiled, such as C. Such a runtime environment can then execute code written in that language as a JIT compiled application. With C, this task is most likely non-trivial.\\
 
-The notion of forward and backward compilation will be mentioned in this report, it describes the direction of compilation. Peter Sestoft has designed a forward compiler for MicroC (\texttt{Comp.fs}) and a backward continuation based compiler (\texttt{ContComp.fs}. The purpose of the backward continuation compiler is to display how some easy optimisations can be implemented when compiling in that particular direction. MicroWac will be a forward compiler with no optimisations.
+The notion of forward and backward compilation will be mentioned in this report, it describes the direction of compilation. Peter Sestoft has designed a forward compiler for MicroC (\texttt{Comp.fs}) and a backward continuation based compiler (\texttt{Contcomp.fs}). The purpose of the backward continuation compiler is to display how some easy optimisations can be implemented when compiling in that particular direction. MicroWac will be a forward compiler with no optimisations.
 
 \subsubsection{Linking}
 \label{sec:problem-analysis:compilers:linking}
@@ -164,23 +164,23 @@ When compiling, a program usually has some sort of dependencies. For C, it could
 
 Linking at compile time is called "static linking". Static linking combines the program with its dependencies into a single binary file.
 
-Runtime linking, also known as "dynamic linking", is used by WebAssembly. Dynamic linking allows dependencies to be linked at runtime. A large benefit of this model is: as long as there are no breaking changes to a dependency, it can be updated without recompiling the program, simply replace the binary of the dependency. The .NET platform also uses dynamic linking, usually by linking against \texttt{.DLL}-files (Dynamic-link library).
+Runtime linking, also known as "dynamic linking", is used by WebAssembly. Dynamic linking allows dependencies to be linked at runtime. A large benefit of this model is: as long as there are no breaking changes to a dependency, it can be updated without recompiling the dependent program, the binary of the dependency can be replaced with an updated version. The .NET platform also uses dynamic linking, usually by linking against \texttt{.DLL}-files (Dynamic-link library).
 
 \subsubsection{Benefits of AOT- over JIT Compilation}
 \label{sec:problem-analysis:compilers:benefits-of-aot}
-\textbf{Type Safety} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program hits runtime. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking occurs at runtime, and type errors that the developer was not notified of during development will show up in the browser.\\
+\textbf{Type Safety} When a statically typed language is compiled ahead-of-time, the compiler can complain to the developer before the program even reaches a runtime environment. For instance, if the developer attempts to assign a char value to a variable that is declared to contain an integer, the compilation will fail. This is useful for producing correct code. JavaScript is a loosely typed language, meaning that type checking occurs at runtime, and type errors that the developer was not aware of during development may turn up as the program is executed in the browser.\\
 
-\noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process. This makes an AOT compiler preferred for live and runtime critical systems - as execution is deterministic.
+\noindent \textbf{Optimisations} While optimisations can be made by both an AOT and JIT compiler, an AOT has all the time a developer has to spare to optimise. A JIT will need to weigh the potential gain of an optimisation against slowing down the program during the consideration process~\cite{website:mozhack:fast-wasm}. This makes an AOT compiled language preferred for live and runtime critical systems as the execution path is deterministic.
 
 \subsection{Stack Machines}
 \label{sec:problem-analysis:stack-machines}
-Stack machines implement some derived behaviour of what is known as the abstract stack machine. The stack machine executes code by pushing values onto- and popping values off a stack data structure, hence the name. The instructions are added to the stack using reverse polish notation, also called postfix notation. This notation works by turning infix operators into postfix, for instance: \mintinline{fsharp}{3 + 4} becomes \mintinline{fsharp}{3 4 (+)}. The machine keeps popping the top element on the stack to figure out what to do next.
+Stack machines implement some derived behaviour of what is known as the abstract stack machine. The stack machine executes code by pushing values onto- and popping values off a stack data structure, hence the name. The instructions are added to the stack using reverse polish notation, also called postfix notation. This notation works by computing in postfix, rather than infix, for instance: \mintinline{fsharp}{3 + 4} becomes \mintinline{fsharp}{3 4 +}. The machine keeps popping the top element on the stack to figure out what to do next.
 
 Specific implementations of stack machines have a set of instruction codes that can be used. For instance, the WebAssembly stack machine has the \texttt{i32.add} instruction code, which, when popped, pops two operand values off the stack, adds them together and pushes the result back onto the stack. Several arithmetic-, logic- and other instruction codes are available in the WebAssembly stack machine~\cite{website:wasm-binary-encoding}.
 
-Most computers aren't pure stack machines, but some derived combination of a stack machine, a register machine (which uses registers to store operands and intermediate values) and possibly other machine types. As such, a stack machine can be thought of as an abstraction on top of the machine architecture.
+Most computers aren't pure stack machines, but some derived combination of a stack machine, a register machine (which uses registers to store operands and intermediate values) and other machine types. As such, a stack machine can be thought of as an abstraction on top of the machine architecture.
 
-Assembly language (not WebAssembly) is the closest, somewhat sane, code representation we have to code directly against the central processing unit. This language uses reverse polish notation, just like a stack machine, and utilises registers that are closer to the central processing unit than random access memory. When a browser compiles WebAssembly (which does not use registers), registers are used, and disassembling the LLVM output of a WebAssembly compilation done by browsers\footnote{The tool that enables this level of inspection: https://mbebenita.github.io/WasmExplorer/} proves this\footnote{WasmExplorer used to compile a simple C program to WebAssembly, then to LLVM x86 Assembly: https://goo.gl/nUqTZ1}.
+Assembly language (not WebAssembly) is the closest, somewhat sane, code representation that exists to code directly against the central processing unit. This language uses reverse polish notation, just like a stack machine, and utilises registers that are closer to the central processing unit than random access memory. When a browser compiles WebAssembly (which does not use registers), registers are used, and disassembling the LLVM output of a WebAssembly compilation done by browsers\footnote{The tool that enables this level of inspection: https://mbebenita.github.io/WasmExplorer/} proves this\footnote{WasmExplorer used to compile a simple C program to WebAssembly, then to LLVM x86 Assembly: https://goo.gl/nUqTZ1}.
 
 A specific version of the Assembly language exists for each instruction set architecture, but they usually have several similarities. An Assembly language exists which attempt to support several platforms\footnote{NASM (The Netwide Assembler) is an assembly language that is designed for portability, and can be compiled for execution on multiple operating systems and processor architectures (x86/x86-64): http://www.nasm.us/}.
 
@@ -189,10 +189,10 @@ A specific version of the Assembly language exists for each instruction set arch
 \label{sec:problem-analysis:history}
 Less than a year ago there was only 1 language that could run natively in all browsers: JavaScript. The web is built around it, and the language has flourished and expanded beyond the land of browsers, in the form of execution environments such as Node.js\footnote{https://nodejs.org/} and native application frameworks such as React Native\footnote{https://facebook.github.io/react-native/} and Electron\footnote{https://electron.atom.io/}.
 
-Attempts have been made to make JavaScript run faster, but ultimately no standards other than WebAssembly caught on. One of the more popular attempts is asm.js\footnote{http://asmjs.org/spec/latest/}. asm.js is a subset of JavaScript, with tooling that allows for source-to-source compilation from languages such as C and C++ to asm.js. The subset allows static type checking by browsers that implement a specific parser for asm.js. Drafted in 2014 - asm.js yielded good results\footnote{http://asmjs.org/faq.html}, but work on the format seems to have shifted to WebAssembly, due to the large size of compiled code bases (non-binary). The binary WebAssembly format is much smaller, and can be compressed even more than the code yielded by asm.js, furthermore parsing of binary data is significantly faster than that of strings, thus decreasing the time-to-execution of compiled WebAssembly modules versus asm.js code.
+Attempts have been made to make JavaScript run faster, but ultimately no new standards have been made other than WebAssembly. One of the more popular attempts is asm.js\footnote{http://asmjs.org/spec/latest/}. asm.js is a subset of JavaScript, with tooling that allows for source-to-source compilation from languages such as C and C++ to asm.js. The subset allows static type checking by browsers that implement a specific parser for asm.js. Drafted in 2014 - asm.js yielded good results\footnote{http://asmjs.org/faq.html}, but work on the format seems to have shifted to WebAssembly, due to the large size of compiled code bases (non-binary). The binary WebAssembly format is much smaller, and can be compressed even more than the code yielded by asm.js, furthermore parsing of binary data is significantly faster than that of strings, thus decreasing the time-to-execution of compiled WebAssembly modules versus asm.js code.
 
 \subsubsection{JavaScript}
-JavaScript is a loosely typed language that runs in browsers. The JavaScript code created by a software developer needs to be sent via a server to the visitors browser, the code will then execute immediately.
+JavaScript is a loosely typed language that runs in browsers. JavaScript code written by a software developer needs to be sent via a website, to the visitors browser, the code will execute immediately on arrival.
 
 JavaScript is compiled by a JIT compiler at runtime\footnote{This is not always true. Ignition, a newly developed interpreter for V8 (Chrome's JavaScript engine), is used alone or along with JIT compilation, especially on devices where a lower- memory footprint, or battery usage is preferred over high performance (Smartphones, for instance)~\cite{video:thompson-js-perf-v8-and-wasm}.}, which takes the code, converts it into abstract syntax and then to machine code~\cite[p.~13]{slides:lund-v8}. During the execution of a JavaScript program, the JIT compiler will attempt to optimise the generated machine code by making probabilistic assumptions about program behaviour. These assumptions can eventually fail, thus forcing the JIT to throw away optimisations based on falsified claims - this is a cause of non-deterministic execution speed of JavaScript programs. The JIT's that are found in modern browsers make a lot of intelligent optimisations on what is generally referred to as \texttt{warm} and \texttt{hot} code paths\footnote{Warm and hot code describes code paths that are executed regularly and often, respectively.}, thereby greatly increasing performance without sacrificing excessive resources. When a JIT compiler is run on a system with multiple processor cores, it can run in parallel, thereby generating optimisations without blocking the main thread of the browser.
 
@@ -376,8 +376,8 @@ fetchAndInstantiate().then(module => {
 \end{minted}
 The code calls the function with 42 as an argument, stores the result in a variable \texttt{b} and then logs it to the console. Note, that exported functions can only be found in the \texttt{exports} property of the compiled module object, this is a WebAssembly JS API specification~\cite{website:wasm-javascript-api}.
 
-\subsection{Further Examples}
-More examples can be found in \texttt{./micro-wac/test/} (made by me) and in \texttt{./micro-wac/test/plc/} (made by Peter Sestoft).
+\subsection{Additional Examples}
+More examples can be found in \texttt{./micro-wac/test/} and in \texttt{./micro-wac/test/plc/} (made by Peter Sestoft).
 
 In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written S-expression programs that resemble what the equivalent MicroC code was expected to compile to. Some of them are translations to examples in the test folder. A small test framework is written to expose the \texttt{wasm} samples to the browser, see section~\ref{sec:peripherals:run-test-framework},~\nameref{sec:peripherals:run-test-framework}, for more details.
 
@@ -386,13 +386,45 @@ In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written
 \label{sec:technical}
 In this section, important design choices made during the project are discussed, and select technical aspects of the compiler is explained.
 
+\subsection{MicroWac}
+MicroWac is a forward compiler that depends on FsLexYacc to generate a lexer and parser by a supplied lexer spec, \texttt{CLex.fsl}, and parser grammar, \texttt{CPar.fsy}. It was decided to write the compiler in a forward style as it is a simpler model, and could later be rewritten to be backwards continuation style if a forward style was trivial to implement - this turned out not to be the case, so it remains a forward style compiler. Had the compiler been implemented using backward continuation style, optimisations from the course "Programs as Data" would've been easy to implement to the compiled code.
 
-% TODO go go go
+\subsubsection{Modules}
+A dependency graph is supplied in section~\ref{sec:technical:dependency-graph},~\nameref{sec:technical:dependency-graph}, and it depicts how the modules in the MicroWac system depend on each other. What follows is a description of each of the files and their responsibilities:
+\begin{itemize}
+	\item \texttt{Absyn.fs}: Contains type information for the MicroWac abstract syntax tree. It is a slightly modified version of the one supplied by Peter Sestoft. Both the frontend and the backend parts of the compiler depend on this module.
+	\item \texttt{CPar.fsy}: Contains the parser grammar which can be compiled with FsLexYacc into the signature- and implementation files: \texttt{CPar.fsi} and \texttt{CPar.fs}, respectively. Also used in lexer specification which needs it to know what kind of parser tokens to generate.
+	\item \texttt{CLex.fsl}: Contains the lexer specification which can be compiled with FsLexYacc into the \texttt{CLex.fsi} and \texttt{CLex.fs}. The lexer tokenizes the MicroC code.
+	\item \texttt{Parse.fs}: The parse code in this file uses the \texttt{CPar/CLex} modules along with a lexing module from the FsLexYacc runtime. It exposes two high-level functions that can be used to compile a MicroC program from a string (great for debugging in F\# interactive) and from file using a stream reader. Both functions output a \texttt{Program}, as specified in the abstract syntax.
+	\item \texttt{WasmMachine.fs}: Handles type information for the construction of WebAssembly binaries. Also contains functions to convert the types to bytes, as bytes are needed to output binary WebAssembly modules.
+	\item \texttt{Wasmcomp.fs}: The heart of the compiler backend. Has types that keeps structure over the function- and variable environments and memory management. The \texttt{cProgram} function takes a \texttt{Program} as input and returns the environments that are required for a program to be compiled to WebAssembly. The environments are generated using several folding functions. \texttt{compileWasmBinary} runs mapping functions on the output of the \texttt{cProgram} function in order to create a binary file containing the MicroC program translated to WebAssembly sections and code.
+	\item \texttt{Program.fs}: Emits an entry point into the compiler and lets the compiler be run from a command line terminal. See section~\ref{sec:user-guide:compile-microc},~\nameref{sec:user-guide:compile-microc}, on how to use MicroWac from the terminal.
+\end{itemize}
 
 \subsection{Variable Management}
 \label{sec:technical:variables}
-% TODO go og go
+Variables in the original MicroC stack machine are accessed via the stack pointer and base pointer. These two pointers are not available in WebAssembly, so a new way to handle variables is thought up in this section.\\
 
+\noindent In early versions of MicroWac, variables were either local or global and could not be addressed. It was weighed beneficial to get the compiler to work early and then add features along the way. This initial version\footnote{https://github.com/AndreasHassing/microc-to-webassembly/blob/4d46e37ee1a5f9c39480a2fb375d59ced7152259/micro-wac/Wasmcomp.fs} turned out to need a lot of extension in order to work with addressable variables.
+
+A variable environment is created to keep track of: variables declared globally and in separate functions, the next free argument ID, the next free relative address in the local scope, the current memory offset and the current depth of the environment. This environment can be passed forward in a fold, which will allow the environment data to be updated over the course of compilation. First, global variables are folded into an initial environment, then each function extends this environment separately.
+
+As the local and global variable constructs in WebAssembly are unaddressable, see section~\ref{sec:problem-analysis:webassembly:aligning},~\nameref{sec:problem-analysis:webassembly:aligning}, it seems that, in order to address variables, putting them in linear memory is the only option. Data in linear memory can be accessed with an absolute address, or a relative address with an offset. This can be designed, such that each function starts with an offset of the next free address, and stores local variables relative to that offset.
+
+\begin{figure}[H]
+	\includegraphics[width=0.7\textwidth]{MemoryManagement}
+	\centering
+	\caption{Linear memory of a WebAssembly module. First at instantiation-time, then after allocating and assigning the value of a char, then after allocating and assigning the value of a 32-bit integer.}
+	\label{fig:memory-management}
+\end{figure}
+
+Figure \ref{fig:memory-management} shows how global variables are allocated. The same algorithm is used to allocate local variables, except they are allocated in a per function scope, offset by the next free address at the time of compilation.
+
+Linear memory resembles a heap, and is allocated as compressed as possible at compile time to avoid defragmentation.
+
+A cleaner, and slightly more complex, solution to memory management could be to, only put: pointer variables, array variables, and variables whose address has been fetched with the ampersand operator: \texttt{\&var}, into linear memory. This way, unaddressed variables could be encoded as function-scoped WebAssembly local variables. A benefit of this could be, that functions using local variables can reap some benefits of variable locality, a feature that depends on the compiling browser. Unfortunately, I did not have time to implement this concept.
+
+\newpage
 \subsection{Compiling to WebAssembly}
 \label{sec:technical:webassembly}
 Some of the interesting intricacies of compiling to the WebAssembly binary format are dissected in this section.
@@ -412,27 +444,35 @@ An excerpt from the code found in \texttt{Wasmcomp.fs}:
                       END]
 \end{minted}
 
-The code compiles the logical statement first. As statements can contain variable declarations, the variable environment must be deepened. Code generation is purposefully indented to look like an actual while loop construct in C.
+The code compiles the loop code statement first. As statements can contain variable declarations, the variable environment must be deepened. Code generation is purposefully indented to look like an actual while loop construct in C.
+
+The branching opcodes, also seen in the example above, do not branch to a specific label, instead they branch out of a relative depth. The \texttt{BR 0uy} opcode in the while loop breaks 0 depth out, meaning that it returns to the loop and executing the boolean expression and statement again. If the boolean expression equals zero, a 1 is pushed onto the stack which \texttt{BR\_IF} then consumes and uses to break 1 depth out to the surrounding block which then ends execution of the loop.
+
+It has been important to inspect and study all the opcodes available in WebAssembly to ensure that MicroC is compiled as succinctly as possible.
+
+The set of remaining instruction codes that are useful when compiling MicroC to WebAssembly are presented in \texttt{./micro-wac/WasmMachine.fsi}.
+
+\subsection{Linear Memory}
+\label{sec:technical:webassembly:memory}
+In every module, MicroWac allocates a single page of memory (64KiB). This is the smallest amount that a WebAssembly module can demand. Linear memory is used to store global and local variables, such that they can be referenced by address.
+
+The reasoning behind a single page of memory is, that it can store 16384 integers or 65536 chars\footnote{65536 bytes / 4 bytes per integer = 16384 integers. A char takes up a single byte in memory.}. It seemed unlikely that anyone testing MicroWac would create more variables than that. If, however, this is is the case, the compiler can easily be extended such that it keeps track of how much memory is spent, and makes sure to allocate enough pages to support the variable count.
 
 \subsection{Outputting Binaries}
 As the original MicroC compiler simply output the compiled programs as files containing the string representation of opcodes, the code could not be reused.
 
 WebAssembly expects binaries to be Actual binaries. Fortunately, previous experience with the .NET \texttt{BinaryWriter}\footnote{https://msdn.microsoft.com/en-us/library/system.io.binarywriter} class reduced the effort required to implement writing binary data to a file.
 
+\texttt{WasmMachine.fs} exposes the instruction opcodes, and a function to get the byte values of a instruction: \texttt{emitbytes}.
+
 All of the binary-outputting code is contained in a single function inside \texttt{Wasmcomp.fs}: \texttt{compileWasmBinary}.
-
-\subsubsection{Linear Memory}
-\label{sec:technical:webassembly:memory}
-In every module, MicroWac allocates a single page of memory (64KiB). This is the smallest amount that a WebAssembly module can demand. Linear memory is used to store global and local variables, such that they can be referenced by address.
-
-The reasoning behind a single page of memory is, that it can store 16384 integers or 65536 chars\footnote{65536 bytes / 4 bytes per integer = 16384 integers. A char takes up a single byte in memory.}. It seemed unlikely that anyone testing MicroWac would create more variables than that. If, however, this is is the case, the compiler can easily be extended such that it keeps track of how much memory is spent, and makes sure to allocate enough pages to support the variable count.
 
 \subsubsection{LEB128: Variable size integer encoding}
 Specified in the DWARF Debugging Information Format~\cite{DWARF}, the LEB128, or Little Endian Base 128, variable size integer encoding is used in WebAssembly to encode most integers in the binary format~\cite[\#numbers]{website:wasm-binary-encoding}. In layman's terms, the encoding can store arbitrary size integers in few bytes.
 
 In the WebAssembly documentation, a LEB128 number is called either a \texttt{varuintN} for a unsigned LEB128 number, and \texttt{varintN} for a signed LEB128 number.
 
-To encode integers with LEB128, the algorithm found in the paper~\cite{DWARF} must be implemented. To avoid spending time re-implementing LEB128, an open source (MIT-Licensed) version of the algorithm was found\footnote{https://github.com/yageek/LEB128/blob/d05713742dd56bc2d1eaed44956f20f6755fa4e9/Sources/LEB128.swift\#L79} - the algorithm, coded in Swift, was translated to F\#. See the implementation of the function \texttt{i2leb} in~\ref{sec:appendix:code:WasmMachine.fs},~\nameref{sec:appendix:code:WasmMachine.fs}.
+To encode integers with LEB128, the algorithm found in the paper~\cite{DWARF} must be implemented. To avoid spending time re-implementing LEB128, an open source (MIT-Licensed) version of the algorithm was found\footnote{https://github.com/yageek/LEB128/blob/d05713742dd56bc2d1eaed44956f20f6755fa4e9/Sources/LEB128.swift\#L79} - the algorithm, coded in Swift, has been translated to F\#. See the implementation of the function \texttt{i2leb} in~\ref{sec:appendix:code:WasmMachine.fs},~\nameref{sec:appendix:code:WasmMachine.fs}.
 
 \begin{center}
     \begin{tabular}{| l | l | l | l |}
@@ -441,16 +481,15 @@ To encode integers with LEB128, the algorithm found in the paper~\cite{DWARF} mu
     00    & 00000000 &     0 &    0 \\ \hline
     01    & 00000001 &     1 &    1 \\ \hline
     7F    & 01111111 &   127 &   -1 \\ \hline
-    80 7F & 10000000 & 16256 & -128 \\
-          & 01111111 & &            \\ \hline
+    80 7F & 10000000 01111111 & 16256 & -128 \\ \hline
     2A    & 00101010 &    42 &   42 \\ \hline
     56    & 01010110 &    86 &  -42 \\ \hline
     \end{tabular}
 \end{center}
 
-The table above depicts how a handful of numbers are encoded with LEB128 (unsigned and signed) and their binary representations.
+The table above depicts how a set of numbers are encoded with LEB128 (unsigned and signed) and their binary representations.
 
-There are times when WebAssembly expects standard byte-encoded 32-bit integers in the binary format. In this case, a function \texttt{i2b} uses the \texttt{BitConverter} class found in the .NET library to convert an integer to bytes, it then reverses the ordering as integers are little endian in WebAssembly.
+The WebAssembly header is encoded as two 32-bit integers, so for this purpose a function \texttt{i2b} uses the \texttt{BitConverter} class found in the .NET library to convert an integer to bytes, the byte ordering is reversed as integers are little endian in WebAssembly.
 
 \subsection{Dependency Graph}
 \label{sec:technical:dependency-graph}
@@ -466,6 +505,7 @@ The dependency graph depicts how different parts of the compiler infrastructure 
 
 This design is almost identical to the one defined by Peter Sestoft. The only change is, that a \texttt{Program.fs} file exists, which exposes a \texttt{main} function that allows the compiler to be invoked via a command line terminal. It is a good design that splits the frontend and backend fairly well.
 
+\newpage
 \subsection{Extension to MicroC}
 \label{sec:technical:extension}
 MicroC has been extended with the \texttt{import} and \texttt{export} keywords. They can be used to define function prototypes (signatures) for dynamically linked function definitions, and to decide which functions to export to the instantiating environment. The keywords are added to the lexer, and the parser has been extended to accommodate the behaviour.
@@ -490,7 +530,7 @@ The abstract syntax is also extended for this feature to work: the notion of a f
 \subsection{F\# Signature Files}
 It is considered wise to expose as little as possible from a module or library, therefore signature files are defined for most of the codebase. Signature files describe what to export from an implementation file, and act as a sort of high-level interface between modules.
 
-Documentation added to the definitions declared in a signature file can be used by development environments, such as Visual Studio Code and Visual Studio, to provide contextual information when holding the cursor over a function name.
+Documentation added to the definitions declared in a signature file can be used by development environments, such as Visual Studio Code and Visual Studio, to provide contextual information when hovering the cursor over a function name.
 
 \newpage
 \section{Testing and Validation}
@@ -537,9 +577,13 @@ What follows are the known issues in the compiler:
 \label{sec:peripherals}
 This section describes the use of peripheral programs and tooling that assist in: compiling the compiler, exposing the generated code from compiled MicroC programs, and handling WAST S-expression programs and WASM binaries.
 
+Development of MicroWac was completed in Visual Studio 2017, and the plugin \texttt{F\# Outlining}\footnote{https://marketplace.visualstudio.com/items?itemName=lostmsu.FOutlining} was used to allow code folding on \texttt{//\#region} comments.
+
 \subsection{Inspecting WASM Binaries}
 \label{sec:peripherals:inspecting-wasm}
 To inspect WebAssembly binaries (and ensure correctness) two hex viewers were used: HxD\footnote{https://mh-nexus.de/en/hxd/} on Windows, and https://hexed.it/ on OS X and Linux.
+
+An expected output program was written in hand as a WAST file, then compiled to a WebAssembly binary using WABT. The corresponding MicroC program was then written, and compiled using MicroWac. The tools above could be used to inspect the binary hex representation of the WASM files.
 
 \subsection{Lexer and Parser Generator}
 \label{sec:peripherals:lexpargen}
@@ -592,6 +636,7 @@ Prototyping different solutions with F\# is extremely easy. This fact was abused
 
 This command opens up F\# interactive with the compiler loaded. To use the compiler within interactive type in: \texttt{open MicroWac;;} and start using the functions. By not including the \texttt{.fsi} files in the command, access is obtained to all functions, even those not exposed by the signature files - a neat trick.
 
+\newpage
 \section{Future Extensions}
 \label{sec:extensions}
 This section contains ideas on what the compiler could be extended with.
@@ -610,7 +655,7 @@ Humans (should) write readable and maintainable code. A computer only cares abou
 	\caption{The applied optimisation to the left stack is simple: adding two constants can be reduced to the result of the addition. The optimisation on the right hand side is more complex: suppose we have a global at position 5 that is immutable and contains the value 42. We can convert the get-call to the value of the variable, as it will never change, which leads to an operation sequence that resembles the one on the left hand side - which, then again, can be can be optimised even further.}
 \end{figure}
 
-In a forward compiler, optimising with peephole style optimisations can be added as a pass in the backend compiler, such that when the instruction code is generated, the compiler will run through it again, this time attempting to apply optimisations which attempts to reduce and remove code. For instance, if a function in a program adds two constants together and returns the result, an optimising compiler will reduce the expression to the result of the addition operation, and simply return that: \mintinline{c}{return 7+14; => return 21;}. The logic has not been tampered with, but the function is now 3 operations cheaper\footnote{One for each of the stack reads (reading 7 and 14) and then one for the resulting write operation.}. A more elaborate example can be found below.
+In a forward compiler, optimising with peephole style optimisations can be added as a pass in the compiler backend, such that when the instruction code is generated, the compiler will run through it again, this time attempting to apply optimisations which attempts to reduce and remove code. For instance, if a function in a program adds two constants together and returns the result, an optimising compiler will reduce the expression to the result of the addition operation, and simply return that: \mintinline{c}{return 7+14; => return 21;}. The logic has not been tampered with, but the function is now 3 operations cheaper\footnote{One for each of the stack reads (reading 7 and 14) and then one for the resulting write operation.}. A more elaborate example can be found below.
 
 \begin{figure}[H]
 	\includegraphics[width=0.75\textwidth]{PeepholeOptimisation}
@@ -620,19 +665,19 @@ In a forward compiler, optimising with peephole style optimisations can be added
 \end{figure}
 As can be seen in figure~\ref{fig:peephole-optimisation}, only the multiplication expressions are simplified. While peephole optimising, the compiler will not know if it can discard \texttt{a} entirely, as it could be referenced later, and the compiler does not know the value of \texttt{x}, nor what \texttt{a} contains anymore (we can see that it is equal to $0$, but our brains collect a lot of state regarding the program at hand, which allows us to deduce this), therefore, nothing can be optimised at the end of the function. Running a more complex and stateful optimisation technique could detect more redundant code, but such an optimisation is more resource- and time consuming.
 
-Peephole optimisations fall short when more elaborate optimisations are needed. For instance, if you have many small functions you may want to inline them where used. If we reuse the example from above, with the add function, simply adding the result to the stack rather than calling the function each place is fewer operations, thus inlining would yield a benefit. During peephole optimisation, you won't have information regarding the environment, thus you won’t know what the function that is being called will do, and will not know if inlining is legal.
+Peephole optimisations alone fall short when more elaborate optimisations are needed. For instance, if you have many small functions you may want to inline them where used. If we reuse the example from above, with the add function, simply adding the result to the stack rather than calling the function each place is fewer operations, thus inlining would yield a benefit. During peephole optimisation, you won't have information regarding the environment, thus you won’t know what the function that is being called will do, and will not know if inlining that function is valid.
 
-\subsection{Expose the Compiler to the Web}
+\subsection{Expose MicroWac to the Web}
 As described in section~\ref{sec:problem-definition:method},~\nameref{sec:problem-definition:method}, the original intent was to create a web application that exposed an API to the compiler running on a server. This would give WebAssembly beginners the possibility figure out how code in a C-like language compiles to WebAssembly instantaneously.
 
-Some legacy code from the inception of this project still remains in the \texttt{./web-backend/} directory. It contains some Node.js code (JavaScript) to start an Express.js server that can receive simple compile requests (\texttt{server.js}), and code to run processes and receive data from the \texttt{stdin/stderr} file descriptors which could be used to send errors back to the user.
+Some legacy code from the inception of this project still remains in the \texttt{./web-backend/} directory. It contains some Node.js code (JavaScript) to start an Express.js server that can receive simple compile requests (\texttt{server.js}), and code to run processes and receive data from the \texttt{stdin/stderr} file descriptors (\texttt{playground.js}) which could be used to send errors back to the user.
 
-This extension would be interesting to finish before WebAssembly becomes mainstream, as it's tools like these that are in high demand now, and not when toolchains are better in a year or two.
+This extension would be interesting to finish before WebAssembly becomes mainstream, as it's tools like these that are in high demand now, and not when toolchains have improved significantly in a year or two.
 
 \newpage
 \section{Conclusion}
 \label{sec:conclusion}
-WebAssembly is huge, and there are a lot of gotchas' to be had when the specification is scrutinised. Although the design is simple, some features and design choices seem to have come out of nowhere and requires a lot of digging to find a rationale for, if it can be found at all. For instance, why did the working group decide not to have a base and stack pointer, or registers for that matter? Or, why did they decide to create 2 types of variables (global and local), but none that support referencing by address outside of the scope of a function (like how pointers to memory locations work in C)? It's impossible to know. Nevertheless, WebAssembly has been an extremely interesting technology to learn about, and I have no doubt that it will grow exponentially in popularity over the coming years as version 1 settles.
+There are a lot of gotchas' to be had when the WebAssembly specification is scrutinised. Although the design is simple, some features and design choices seem to have come out of nowhere and requires a lot of digging to find a rationale for, if it can be found at all. For instance, why did the working group decide not to have a base and stack pointer, or registers for that matter? Or, why did they decide to create 2 types of variables (global and local), but none that support referencing by address outside of the scope of a function (like how pointers to memory locations work in C)? It's impossible to know. Nevertheless, WebAssembly has been an extremely interesting technology to learn about, and I have no doubt that it will grow exponentially in popularity over the coming years as version 1 settles.
 
 MicroWac generates properly working WebAssembly binaries from most MicroC code. It is tested against a test suite by Peter Sestoft and one written specifically for this project - although I believe that even more tests would've been very beneficial. Not all tests pass, which is not great, but some thoughts attempting to shed some light on this, are set forth in section~\ref{sec:testing:known-issues},~\nameref{sec:testing:known-issues}.
 
@@ -642,22 +687,17 @@ It is too bad that I ended up not having time to make the web interface prototyp
 
 \noindent While I feel that the project is good and that I achieved the learning I set out to obtain, I am not completely satisfied with the code quality in all parts of the compiler. Some solutions feel like they were shoe-horned in, when they should've been well thought out and beautifully designed - I'm thinking about variable management. This is hopefully forgivable.
 
-If not easily forgivable, consider that the LLVM optimising compiler has over 13,000 lines of C++ code to compile LLVM IR to WebAssembly\footnote{Calculated using \mintinline{bash}{find . -name '*.cpp' | xargs wc -l}.}, and MicroWac is only 3,000 lines of code (also including the compiler frontend).\footnote{Sorry for this cheeky comparison.}\\
-
-\noindent Thank you for reading.\\
-\\
-
+\newpage
 \section{Open Source}
 \noindent The creation of this project lead to contributions to a few open source projects:
 \begin{itemize}
 	\item https://github.com/ionide/ionide-vscode-fsharp/issues/427
 	\item https://github.com/fsharp/FsAutoComplete/pull/163
-	\item https://github.com/Microsoft/visualfsharpdocs/pull/286 (F\# Documentation)
+	\item https://github.com/Microsoft/visualfsharpdocs/pull/286
 \end{itemize}
 
 \noindent MicroC is also released as open source under the GNU General Public License v3.0\footnote{See the license in \texttt{LICENSE.md}, or at https://www.gnu.org/licenses/gpl-3.0.en.html}, and can be forked on GitHub\footnote{https://github.com/AndreasHassing/microc-to-webassembly/}.
 
-\newpage
 \section{References}
 \label{sec:references}
 \begingroup
