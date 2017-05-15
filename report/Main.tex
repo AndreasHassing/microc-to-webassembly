@@ -72,8 +72,7 @@ function BibTeX() {
 	abhn@itu.dk\\
 	\vspace{2cm}
 	{\Large Abstract\par}
-	%TODO: Write an awesome abstract.
-	{\bfseries This is where the abstract will go.}
+	{\bfseries This report scrutinises the new executable format for the web: WebAssembly. To assist in this venture, a compiler is written from a simple C-like language called MicroC. Although writing and designing compilers is a complex task, there are tools like FsLexYacc, a Lexer and Parser generator for F\#, that can alleviate the process - such tools, and more, are used in this project to great effect.}
 	\vfill
 % Bottom of the page
 	{\large \today\par}
@@ -185,8 +184,6 @@ Assembly language (not WebAssembly) is the closest, somewhat sane, code represen
 
 A specific version of the Assembly language exists for each instruction set architecture, but they usually have several similarities. An Assembly language exists which attempt to support several platforms\footnote{NASM (The Netwide Assembler) is an assembly language that is designed for portability, and can be compiled for execution on multiple operating systems and processor architectures (x86/x86-64): http://www.nasm.us/}.
 
-%TODO: add more to AOT benefits?
-%TODO: add JIT benefits?
 \newpage
 \subsection{History of Web Coding}
 \label{sec:problem-analysis:history}
@@ -201,7 +198,7 @@ JavaScript is compiled by a JIT compiler at runtime\footnote{This is not always 
 
 \subsection{WebAssembly}
 \label{sec:problem-analysis:webassembly}
-WebAssembly can be expressed using two formats: a binary syntax (.wasm files) that can be executed in browsers (and Node.js behind a flag: \texttt{--expose-wasm}), and a textual representation (.wast files) called the S-expression syntax.
+WebAssembly can be expressed using two formats: a binary syntax (.wasm files) that can be executed in browsers (and Node.js behind a flag: \texttt{--expose-wasm}), and a textual representation (.wast files) called the S-expression syntax (WAST).
 
 The binary syntax contains a magic number which states that the module is WebAssembly and the version number of the binary. Then follows a number of sections that describe the intricacies of the module. The binary module is described in more detail in section~\ref{sec:problem-analysis:webassembly:binary},~\nameref{sec:problem-analysis:webassembly:binary}.
 
@@ -275,8 +272,6 @@ A developer can access data in linear memory by using a set of load- and store i
 	\item \texttt{i32.load8\_u}: Similar to \texttt{i32.load}, but only loads 8 bits and zero-extends to a 32-bit integer. This can be used to load a single byte from memory, i.e., a char.
 \end{itemize}
 
-% TODO: remember to talk about why only 1 page is allocated
-
 \subsubsection{Aligning MicroC and WebAssembly}
 \label{sec:problem-analysis:webassembly:aligning}
 In this section, some discovered misalignments between MicroC and WebAssembly will be discussed and handled.
@@ -301,14 +296,15 @@ void changeInt(int* i, int to) { *i = to; }
 void main() { int x; x = 5; changeInt(&x, 42); }
 \end{minted}
 
-Possible solutions to this problem are:
+\noindent Possible solutions to this problem are:
 \begin{itemize}
 	\item Declare all variables defined inside a function block as locals, until they are referenced, at which point they are moved from the local environment to linear memory. Any access to the value of a variable inside linear memory variable will occur by dereferencing the address into the linear memory.
 	\item A simpler version of the proposal above: declare all variables in linear memory, except for function arguments which are special.
 \end{itemize}
 
-Due to time constraints, I decided to go with the 2nd solution, but wanted to implement the 1st. See %TODO: reference to technical description: variables in memory
+Due to time constraints, I decided to go with the 2nd solution, but wanted to implement the 1st. See section~\ref{sec:technical:variables},~\nameref{sec:technical:variables}.
 
+\newpage
 \section{User Guide and Examples}
 \label{sec:user-guide}
 
@@ -346,8 +342,8 @@ void start() {
 
 When the program is compiled to WebAssembly, using MicroWac, the \texttt{print} function is supplied implicitly. As the function is named \texttt{start}, it will be run at instantiation-time. If the compiler is invoked with the \texttt{-html} flag, a template HTML file is also generated, which contains a simple output function that displays printed numbers on the screen.
 
-\subsubsection{\texttt{importexport.c} Example}
-The \texttt{importexport} example exposes how explicit imports and exports can be used from within MicroC (this is an extension to the MicroC language described in ...).%TODO: MISSING REFERENCE HERE!!!
+\subsubsection{Example of import and export}
+The following example shows how explicit imports and exports can be used from within MicroC. This feature is an extension to the MicroC language described in section~\ref{sec:technical:extension},~\nameref{sec:technical:extension}.
 
 \begin{minted}[tabsize=2]{c}
 // log_number is a function imported from JS
@@ -378,23 +374,58 @@ fetchAndInstantiate().then(module => {
 	console.log(b); // logs 84 to the console
 });
 \end{minted}
-The code calls the function with 42 as an argument, stores the result in a variable \texttt{b} and then logs it to the console.
+The code calls the function with 42 as an argument, stores the result in a variable \texttt{b} and then logs it to the console. Note, that exported functions can only be found in the \texttt{exports} property of the compiled module object, this is a WebAssembly JS API specification~\cite{website:wasm-javascript-api}.
 
 \subsection{Further Examples}
 More examples can be found in \texttt{./micro-wac/test/} (made by me) and in \texttt{./micro-wac/test/plc/} (made by Peter Sestoft).
 
 In the folder \texttt{./micro-wac/test/expected-output/}, there are hand-written S-expression programs that resemble what the equivalent MicroC code was expected to compile to. Some of them are translations to examples in the test folder. A small test framework is written to expose the \texttt{wasm} samples to the browser, see section~\ref{sec:peripherals:run-test-framework},~\nameref{sec:peripherals:run-test-framework}, for more details.
 
+\newpage
 \section{Technical Description}
 \label{sec:technical}
-In this section, design choices made during the project are discussed and technical aspects of the compiler is explained.
+In this section, important design choices made during the project are discussed, and select technical aspects of the compiler is explained.
 
-\subsection{}
-% TODO missing a few pages here regarding decisions made while creating the compiler
+
+% TODO go go go
+
+\subsection{Variable Management}
+\label{sec:technical:variables}
+% TODO go og go
 
 \subsection{Compiling to WebAssembly}
 \label{sec:technical:webassembly}
 Some of the interesting intricacies of compiling to the WebAssembly binary format are dissected in this section.
+
+\subsubsection{Instruction Opcodes}
+Compared to MicroC, WebAssembly has a wide range of opcodes, including several control flow opcodes. This has allowed some very readable compiler code of, for instance, while loops and if-expressions.
+An excerpt from the code found in \texttt{Wasmcomp.fs}:
+\begin{minted}{fsharp}
+| While (exp, stm) ->
+  let loopVarEnv, loopCode = cStmt (deepen varEnv) funEnv stm
+  shallow loopVarEnv, BLOCK (BVoid)
+                      :: LOOP (BVoid)
+                        :: cExpr loopVarEnv funEnv exp @ I32_EQZ :: BR_IF 1uy
+                        :: loopCode
+                        @  BR 0uy
+                      :: [END;
+                      END]
+\end{minted}
+
+The code compiles the logical statement first. As statements can contain variable declarations, the variable environment must be deepened. Code generation is purposefully indented to look like an actual while loop construct in C.
+
+\subsection{Outputting Binaries}
+As the original MicroC compiler simply output the compiled programs as files containing the string representation of opcodes, the code could not be reused.
+
+WebAssembly expects binaries to be Actual binaries. Fortunately, previous experience with the .NET \texttt{BinaryWriter}\footnote{https://msdn.microsoft.com/en-us/library/system.io.binarywriter} class reduced the effort required to implement writing binary data to a file.
+
+All of the binary-outputting code is contained in a single function inside \texttt{Wasmcomp.fs}: \texttt{compileWasmBinary}.
+
+\subsubsection{Linear Memory}
+\label{sec:technical:webassembly:memory}
+In every module, MicroWac allocates a single page of memory (64KiB). This is the smallest amount that a WebAssembly module can demand. Linear memory is used to store global and local variables, such that they can be referenced by address.
+
+The reasoning behind a single page of memory is, that it can store 16384 integers or 65536 chars\footnote{65536 bytes / 4 bytes per integer = 16384 integers. A char takes up a single byte in memory.}. It seemed unlikely that anyone testing MicroWac would create more variables than that. If, however, this is is the case, the compiler can easily be extended such that it keeps track of how much memory is spent, and makes sure to allocate enough pages to support the variable count.
 
 \subsubsection{LEB128: Variable size integer encoding}
 Specified in the DWARF Debugging Information Format~\cite{DWARF}, the LEB128, or Little Endian Base 128, variable size integer encoding is used in WebAssembly to encode most integers in the binary format~\cite[\#numbers]{website:wasm-binary-encoding}. In layman's terms, the encoding can store arbitrary size integers in few bytes.
@@ -420,12 +451,6 @@ To encode integers with LEB128, the algorithm found in the paper~\cite{DWARF} mu
 The table above depicts how a handful of numbers are encoded with LEB128 (unsigned and signed) and their binary representations.
 
 There are times when WebAssembly expects standard byte-encoded 32-bit integers in the binary format. In this case, a function \texttt{i2b} uses the \texttt{BitConverter} class found in the .NET library to convert an integer to bytes, it then reverses the ordering as integers are little endian in WebAssembly.
-
-\subsubsection{Linear Memory}
-\label{sec:technical:webassembly:memory}
-In every module, MicroWac allocates a single page of memory (64KiB). This is the smallest amount that a WebAssembly module can demand. Linear memory is used to store global and local variables, such that they can be referenced by address.
-
-The reasoning behind a single page of memory is, that it can store 16384 integers or 65536 chars\footnote{65536 bytes / 4 bytes per integer = 16384 integers. A char takes up a single byte in memory.}. It seemed unlikely that anyone testing MicroWac would create more variables than that. If, however, this is is the case, the compiler can easily be extended such that it keeps track of how much memory is spent, and makes sure to allocate enough pages to support the variable count.
 
 \subsection{Dependency Graph}
 \label{sec:technical:dependency-graph}
@@ -460,10 +485,14 @@ Fundec ::= VOID NAME LPAR Paramdecs RPAR Block // example: void log_n(int n) { .
 
 For the complete grammar, see~\ref{sec:appendix:code:CPar.fsy},~\nameref{sec:appendix:code:CPar.fsy}.
 
-The abstract syntax is also extended for this feature to work: the notion of a function signature has been added, it resembles function prototypes in C, and a boolean is added to the \texttt{Fundec} union type, declaring whether the function is exported or not. These changes can be found in~\ref{sec:appendix:code:Absyn.fs},~\nameref{sec:appendix:code:Absyn.fs}.
+The abstract syntax is also extended for this feature to work: the notion of a function signature has been added, resembling function prototypes in C/C++, and a boolean has been added to the \texttt{Fundec} union type, declaring whether the function is exported or not. These changes can be found in~\ref{sec:appendix:code:Absyn.fs},~\nameref{sec:appendix:code:Absyn.fs}.
 
+\subsection{F\# Signature Files}
+It is considered wise to expose as little as possible from a module or library, therefore signature files are defined for most of the codebase. Signature files describe what to export from an implementation file, and act as a sort of high-level interface between modules.
 
+Documentation added to the definitions declared in a signature file can be used by development environments, such as Visual Studio Code and Visual Studio, to provide contextual information when holding the cursor over a function name.
 
+\newpage
 \section{Testing and Validation}
 \label{sec:testing}
 This section details how testing and validation has been conducted. Furthermore, known issues are examined.
@@ -499,8 +528,11 @@ What follows are the known issues in the compiler:
 	\item The code that supports compilation of variable access (the \texttt{varAccess} function in \nameref{sec:appendix:code:Wasmcomp.fs}, lines 202 to 242) is a mess and is not very readable. Not really a bug, but probably the reason behind some.  Unfortunately, due to time constraints, I didn't get to clean it up.
 
 	\item In the original MicroC compiler (written by Peter Sestoft), variables that are out of scope bleed into other scopes. A test, see \nameref{sec:appendix:code:test-scope.c}, revealed this problem. This issue does not exist in MicroWac, as MicroWac keeps track of the depth of variables, and declares them as being outside of a scope as soon as their enclosed scope ends.
+
+	\item The control flow opcode \texttt{if} in WebAssembly can either return: a value of some type, or nothing. This must be declared for each if-block. If an if-block is set to return something, it MUST, otherwise instantiation in the browser will fail. As such, MicroWac attempts to figure out if an if-block should return something or not. It does this by checking the block that gets executed when the statement holds, and if that block contains a return statement, the if-block is set to return a value. Should the else-block not return anything, this will lead to an instantiation failure in the browser. This is an issue because MicroC does not have this limitation, but WebAssembly has. I didn't find a solution to this problem.
 \end{enumerate}
 
+\newpage
 \section{Peripheral Programs and Tooling}
 \label{sec:peripherals}
 This section describes the use of peripheral programs and tooling that assist in: compiling the compiler, exposing the generated code from compiled MicroC programs, and handling WAST S-expression programs and WASM binaries.
@@ -600,7 +632,30 @@ This extension would be interesting to finish before WebAssembly becomes mainstr
 \newpage
 \section{Conclusion}
 \label{sec:conclusion}
-% TODO missing conclusion
+WebAssembly is huge, and there are a lot of gotchas' to be had when the specification is scrutinised. Although the design is simple, some features and design choices seem to have come out of nowhere and requires a lot of digging to find a rationale for, if it can be found at all. For instance, why did the working group decide not to have a base and stack pointer, or registers for that matter? Or, why did they decide to create 2 types of variables (global and local), but none that support referencing by address outside of the scope of a function (like how pointers to memory locations work in C)? It's impossible to know. Nevertheless, WebAssembly has been an extremely interesting technology to learn about, and I have no doubt that it will grow exponentially in popularity over the coming years as version 1 settles.
+
+MicroWac generates properly working WebAssembly binaries from most MicroC code. It is tested against a test suite by Peter Sestoft and one written specifically for this project - although I believe that even more tests would've been very beneficial. Not all tests pass, which is not great, but some thoughts attempting to shed some light on this, are set forth in section~\ref{sec:testing:known-issues},~\nameref{sec:testing:known-issues}.
+
+It is too bad that I ended up not having time to make the web interface prototype. I believe that it would've made it much easier to show how the WebAssembly binary format works. Fortunately, I also feel that the \texttt{-html} flag is not a bad replacement.\\
+
+\noindent Gathering information about WebAssembly has been a starving experience. As it is a new format, there is still very little documentation and very few examples out in the wild. Had I wanted to create a MicroC to Java Bytecode compiler, I would've been able to swim in resources. This is not to say that the experience has been bad - being starved forced me to experiment with the format a lot more than I might've done otherwise, leading to a, I assume, even better understanding.\\
+
+\noindent While I feel that the project is good and that I achieved the learning I set out to obtain, I am not completely satisfied with the code quality in all parts of the compiler. Some solutions feel like they were shoe-horned in, when they should've been well thought out and beautifully designed - I'm thinking about variable management. This is hopefully forgivable.
+
+If not easily forgivable, consider that the LLVM optimising compiler has over 13,000 lines of C++ code to compile LLVM IR to WebAssembly\footnote{Calculated using \mintinline{bash}{find . -name '*.cpp' | xargs wc -l}.}, and MicroWac is only 3,000 lines of code (also including the compiler frontend).\footnote{Sorry for this cheeky comparison.}\\
+
+\noindent Thank you for reading.\\
+\\
+
+\section{Open Source}
+\noindent The creation of this project lead to contributions to a few open source projects:
+\begin{itemize}
+	\item https://github.com/ionide/ionide-vscode-fsharp/issues/427
+	\item https://github.com/fsharp/FsAutoComplete/pull/163
+	\item https://github.com/Microsoft/visualfsharpdocs/pull/286 (F\# Documentation)
+\end{itemize}
+
+\noindent MicroC is also released as open source under the GNU General Public License v3.0\footnote{See the license in \texttt{LICENSE.md}, or at https://www.gnu.org/licenses/gpl-3.0.en.html}, and can be forked on GitHub\footnote{https://github.com/AndreasHassing/microc-to-webassembly/}.
 
 \newpage
 \section{References}
