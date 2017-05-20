@@ -186,10 +186,7 @@ let rec accessVar varEnv funEnv op = function
                                                 @ [varAssOp false lv.Type lv.Offset]
                    | ArgVar av -> match op with
                                   | GetValue -> [varAccOp true av.Type av.Id]
-                                  | GetAddr  -> match av.Type with
-                                                | TypP _        -> [varAccOp true av.Type av.Id]
-                                                | TypA (typ, _) -> [varAccOp true typ av.Id]
-                                                | _ -> failwith (sprintf "can't get address of non-pointer function argument %A" av)
+                                  | GetAddr  -> failwith (sprintf "can't get address of function arguments %A" av)
                                   | Set exp  -> cExpr varEnv funEnv exp @ [varAssOp true av.Type av.Id]
                    | GloVar gv -> I32_CONST gv.Addr
                                   :: match op with
