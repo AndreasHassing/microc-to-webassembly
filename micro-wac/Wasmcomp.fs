@@ -169,6 +169,9 @@ let shallow varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth - 1 }
 /// deepen increases the current depth of the variable environment.
 let deepen varEnv = { varEnv with CurrentDepth = varEnv.CurrentDepth + 1 }
 
+let stmtContainsReturn stmCode =
+  stmCode |> List.exists (fun instr -> instr = RETURN)
+
 /// accessVar compiles the access of a MicroC variable to instruction codes.
 /// Specific variable behavior (getting the value of, getting the the address of or
 /// setting the value of) is defined by the caller in `op`.
@@ -305,7 +308,8 @@ and cBlock varEnv funEnv = function
                   varEnv, cStmts @ cStmt
                 ) (varEnv, []) stmtOrDecs
     let varEnv = { varEnv with Vars = discardScopes varEnv.CurrentDepth varEnv.Vars }
-    varEnv, BLOCK (BVoid) :: cStmts @ [END]
+    let blockRetTyp = if stmtContainsReturn cStmts then BReturn I32 else BVoid
+    varEnv, BLOCK (blockRetTyp) :: cStmts @ [END]
   | anyOtherStmt ->
     failwith (sprintf "attempted to cBlock compile a non-block statement: %A" anyOtherStmt)
 and cStmt varEnv funEnv = function
@@ -315,9 +319,7 @@ and cStmt varEnv funEnv = function
     let varEnvF, stmFCode =
       cStmt varEnvT funEnv stmF
 
-    let stmtContainsReturn =
-      stmTCode |> List.exists (fun instr -> instr = RETURN)
-    let ifRetTyp = if stmtContainsReturn then BReturn I32 else BVoid
+    let ifRetTyp = if stmtContainsReturn stmTCode then BReturn I32 else BVoid
     shallow varEnvF, cExpr varEnv funEnv bExp
                      @ IF (ifRetTyp) :: stmTCode
                      @ ELSE :: stmFCode
